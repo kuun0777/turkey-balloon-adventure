@@ -904,7 +904,7 @@ renderHome=function(){
  if(grid.firstElementChild!==mapCard)grid.prepend(mapCard)
 };
 </script>
-<script src="cloud-config.js"></script>
+<script src="cloud-config.js?v=20260910-1"></script>
 <style>
 .cloud-card{margin-top:16px}.cloud-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cloud-status{display:flex;align-items:center;gap:8px;padding:11px 13px;border-radius:11px;background:#f4ecdd;font-size:12px;margin:12px 0}.cloud-dot{width:9px;height:9px;border-radius:50%;background:#b66a47}.cloud-status.online .cloud-dot{background:#3c8c70}.cloud-status.syncing .cloud-dot{background:#d3a345;animation:pulse 1s infinite}@keyframes pulse{50%{opacity:.25}}.share-row{display:flex;gap:8px}.share-row input{flex:1}.cloud-grid .wide{grid-column:1/-1}@media(max-width:650px){.cloud-grid{grid-template-columns:1fr}.cloud-grid .wide{grid-column:auto}.share-row{display:grid}}
 </style>
@@ -951,3 +951,4 @@ window.addEventListener('load',()=>{cloud=queryCloudConfig();persistCloud();rend
 </script>
 </body>
 </html>
+
