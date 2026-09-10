@@ -1,0 +1,953 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>火雞熱氣球大冒險｜旅行控制中心 PRO</title>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --ink:#203040;--muted:#73808b;--bg:#fbf6ef;--card:#fffdfa;--line:#eadfce;
+  --terr:#bb644b;--terr2:#df9875;--blue:#27405c;--teal:#5b8075;--sand:#f2e6d4;
+  --gold:#c89652;--ok:#5a886a;--danger:#a24d42;--shadow:0 18px 45px rgba(58,43,28,.09);
+  --radius:24px
+}
+*{box-sizing:border-box} html{scroll-behavior:smooth}
+body{
+  margin:0;font-family:Inter,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  color:var(--ink);background:
+  radial-gradient(circle at 0 0,#f3dac3 0 9%,transparent 25%),
+  radial-gradient(circle at 100% 12%,#dce9e6 0 10%,transparent 26%),
+  linear-gradient(180deg,#fffaf4,#faf5ed 60%,#f7f1e7)
+}
+button,input,select,textarea{font:inherit} button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+.app{max-width:1460px;margin:auto;padding:14px 14px 80px}
+.hero{
+  min-height:350px;border-radius:32px;padding:28px;position:relative;overflow:hidden;color:white;
+  background:
+    linear-gradient(135deg,rgba(17,38,60,.95),rgba(57,81,90,.84) 48%,rgba(183,95,67,.86)),
+    radial-gradient(circle at 82% 28%,rgba(255,255,255,.12),transparent 18%);
+  box-shadow:var(--shadow)
+}
+.hero:before{content:"";position:absolute;right:-90px;bottom:-150px;width:440px;height:440px;border-radius:50%;
+ border:1px solid rgba(255,255,255,.18);box-shadow:0 0 0 40px rgba(255,255,255,.03),0 0 0 80px rgba(255,255,255,.02)}
+.hero-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:22px;align-items:end;min-height:290px;position:relative;z-index:1}
+.kicker{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border:1px solid rgba(255,255,255,.2);border-radius:999px;background:rgba(255,255,255,.08);backdrop-filter:blur(10px);font-size:13px}
+.hero h1{font-size:clamp(36px,5.5vw,70px);line-height:1.02;letter-spacing:-.05em;margin:14px 0 12px;max-width:850px}
+.hero p{max-width:720px;line-height:1.8;color:#f6ede5;margin:0}
+.hero-panel{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(14px);border-radius:22px;padding:16px}
+.hero-kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.hero-kpi{padding:12px;border-radius:16px;background:rgba(255,255,255,.08)}
+.hero-kpi small{display:block;color:#eee4da;font-size:12px} .hero-kpi b{display:block;font-size:21px;margin-top:3px}
+.versionbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.vbtn{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);color:#fff;border-radius:14px;padding:9px 12px}
+.vbtn.active{background:#fff;color:var(--blue)}
+
+.nav{display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:8px;z-index:100;margin:14px 0}
+.nav button{border:1px solid rgba(220,207,191,.8);background:rgba(255,253,249,.92);backdrop-filter:blur(12px);padding:11px 15px;border-radius:14px;box-shadow:0 7px 18px rgba(0,0,0,.04)}
+.nav button.active{background:var(--blue);color:white;border-color:var(--blue)}
+.section{display:none} .section.active{display:block}
+.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+.card{background:rgba(255,253,249,.94);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+.card h2,.card h3{margin-top:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.kpi{padding:15px;border-radius:18px;background:#fff;border:1px solid var(--line)} .kpi small{color:var(--muted)} .kpi b{display:block;font-size:24px;margin-top:4px}
+.branch{padding:14px 16px;border-radius:18px;background:linear-gradient(90deg,#fff4e8,#f7efe7);border:1px solid #ecd9c4;line-height:1.7;margin-bottom:16px}
+.branch strong{color:var(--terr)}
+.route-strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(120px,1fr);gap:10px;overflow-x:auto;padding-bottom:4px}
+.route-node{border:1px solid var(--line);border-radius:17px;padding:12px;background:white;min-height:105px;position:relative}
+.route-node:after{content:"→";position:absolute;right:-10px;top:42%;color:#bba995} .route-node:last-child:after{display:none}
+.route-node .date{font-weight:800;color:var(--terr)} .route-node .sleep{font-size:12px;color:var(--muted);margin-top:5px}
+.route-node button{margin-top:9px;border:0;background:#f4ece3;border-radius:10px;padding:7px 9px}
+.timeline{display:grid;gap:9px;margin-top:12px}
+.daycard{display:grid;grid-template-columns:86px 1fr auto;gap:12px;padding:14px;border:1px solid var(--line);border-radius:18px;background:white;align-items:center}
+.daycard:hover{border-color:#cda88f;transform:translateY(-1px)} .daycard .date{font-weight:900;color:var(--terr)} .daycard .route{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.55}
+.pill{display:inline-block;padding:5px 8px;border-radius:999px;background:#f2ebe2;color:#705949;font-size:11px}
+.btn{border:1px solid var(--line);background:white;border-radius:11px;padding:8px 10px} .btn.primary{background:var(--blue);color:#fff;border-color:var(--blue)} .btn.danger{color:var(--danger)}
+.map{height:390px;border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.muted{color:var(--muted);font-size:13px;line-height:1.65}
+.today-card{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:15px;border-radius:19px;background:linear-gradient(135deg,#eef4f3,#fff4ea);border:1px solid #dde7e3;margin-bottom:14px}
+.today-card b{font-size:20px}
+.day-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.day-head h2{font-size:30px;margin:0} .day-select{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin:14px 0}
+.metric{padding:12px;border-radius:15px;background:#f8f2eb} .metric small{display:block;color:var(--muted);font-size:11px} .metric strong{font-size:17px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.stops{display:grid;gap:10px}
+.stop{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;transition:.15s}
+.stop:hover{box-shadow:0 10px 25px rgba(0,0,0,.05)}
+.stop-grid{display:grid;grid-template-columns:72px 1fr auto;gap:12px;align-items:start}
+.time{background:#eef2f5;border-radius:13px;padding:9px;text-align:center;font-weight:900}
+.stop h4{margin:0 0 4px;font-size:17px} .meta{font-size:12px;color:var(--muted);line-height:1.7} .desc{font-size:13px;line-height:1.75;margin-top:7px}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.notice{padding:12px 14px;background:#fff7e8;border:1px solid #ead3aa;border-radius:14px;font-size:13px;line-height:1.7}
+.category-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.budget-card{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.budget-bar{height:8px;background:#eee7de;border-radius:999px;overflow:hidden;margin-top:9px} .budget-bar>div{height:100%;background:var(--terr)}
+.check-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.check{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:14px;border:1px solid var(--line);background:white}
+.check input{width:auto;margin-top:4px}
+.progress{height:9px;background:#efe7dd;border-radius:99px;overflow:hidden;margin:8px 0 15px} .progress>div{height:100%;background:var(--ok);width:0}
+.booking-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.booking{padding:13px;border:1px solid var(--line);border-radius:15px;background:#fff}
+.booking .status{font-size:11px;border-radius:999px;padding:4px 7px;background:#efe9e1;display:inline-block;margin-top:6px}
+.formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px} .wide{grid-column:1/-1}
+label{display:grid;gap:5px;font-size:12px;color:var(--muted)} input,select,textarea{border:1px solid #d9cfc3;border-radius:10px;padding:9px 10px;background:#fff;width:100%;color:var(--ink)} textarea{min-height:80px}
+.modal{position:fixed;inset:0;background:rgba(22,29,36,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:1000} .modal.open{display:flex}
+.modalbox{width:min(780px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:24px;padding:20px}
+.modalhead{display:flex;justify-content:space-between;align-items:center}
+.footer{font-size:12px;color:var(--muted);margin-top:20px;line-height:1.7}
+@media(max-width:950px){.hero-grid,.grid,.split{grid-template-columns:1fr}.hero-panel{max-width:520px}.metrics{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:650px){.app{padding:9px 9px 55px}.hero{padding:20px;border-radius:24px;min-height:420px}.hero-grid{min-height:375px}.hero h1{font-size:43px}.kpis,.category-grid,.metrics{grid-template-columns:repeat(2,1fr)}.check-grid,.booking-grid,.formgrid{grid-template-columns:1fr}.daycard{grid-template-columns:65px 1fr}.daycard .btn{grid-column:2;width:max-content}.stop-grid{grid-template-columns:62px 1fr}.actions{grid-column:2}.map{height:310px}}
+@media print{.nav,.btn,.actions,.versionbar{display:none!important} body{background:white} .section{display:block!important} .card{box-shadow:none;break-inside:avoid}}
+</style>
+
+<style>
+:root{--ink:#223b46;--muted:#6f7979;--bg:#faf5eb;--card:#fffdf7;--line:#e7ddca;--terr:#c66b45;--terr2:#edac6a;--blue:#176d7b;--teal:#328d89;--sand:#f1e3c6;--gold:#d3a345;--shadow:0 5px 20px rgba(65,55,30,.035);--radius:18px}
+body{background:#faf5eb}.app{max-width:1380px;padding:22px 24px 70px}.hero{border-radius:24px;padding:36px 38px;min-height:330px;background:linear-gradient(115deg,#164e62,#207b82 72%,#368e88);box-shadow:none}.hero:before{width:285px;height:285px;right:-135px;bottom:-180px;border:30px solid #dab267;box-shadow:0 0 0 30px #df966950,0 0 0 60px #f0d49a20}.hero-grid{grid-template-columns:1.2fr .8fr;min-height:270px;gap:40px;align-items:center}.hero h1{font-size:clamp(38px,4.8vw,64px);line-height:1.15;letter-spacing:-.04em;margin:15px 0}.hero p{font-size:14px;line-height:1.9;max-width:620px;color:#e3f0e9}.kicker{border:0;background:#ffffff12;padding:6px 10px;font-size:11px;letter-spacing:.08em}.hero-panel{background:#ffffff0d;backdrop-filter:none;padding:16px;border-radius:17px}.hero-kpis{gap:10px}.hero-kpi{background:#ffffff12;border-radius:12px;padding:15px}.hero-kpi:nth-child(3){background:#f4d795;color:#273e47}.hero-kpi:nth-child(3) small{color:#655736}.hero-kpi b{font-size:24px;white-space:nowrap}.hero-cta{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}.hero-cta .btn:first-child{background:#df8958;color:#fff;border-color:#df8958;font-weight:700;padding:11px 16px}.hero-cta .btn:last-child{background:transparent;color:#e5eeeb;border-color:#8eb2ad}.vbtn{font-size:12px;border-radius:9px}.vbtn.active{background:#f5ead3;color:#274b56;border-color:#f5ead3}.nav{margin:18px 0;background:#faf5ebec;padding:4px 0;gap:7px}.nav button{font-size:13px;box-shadow:none;border-radius:10px;padding:11px 17px}.nav button.active{background:#c66b45;border-color:#c66b45}.branch{background:#f5ead4;border:1px solid #e6d5b3;font-size:13px;padding:12px 16px;border-radius:12px}.kpis .kpi{border:0;border-radius:13px;background:#e2eee9}.kpis .kpi:nth-child(2){background:#f5e0ce}.kpis .kpi:nth-child(3){background:#f1e9cc}.kpis .kpi:nth-child(4){background:#e3e9f0}.kpi small{font-size:12px}.kpi b{font-size:23px}.today-card{background:#fffdf8;border-color:var(--line);border-radius:12px;padding:13px 17px}.today-card b{font-size:16px;display:block;margin:3px 0}.card{background:#fffdf8;box-shadow:none;padding:22px}.card h2{font-size:21px;letter-spacing:-.03em}.route-strip{display:flex;flex-wrap:wrap;gap:0;overflow:visible;padding:3px 0 8px;align-items:center}.route-city{display:inline-flex;align-items:center;font-size:14px;font-weight:700;white-space:nowrap;gap:9px;line-height:2.3}.route-city i{width:8px;height:8px;border-radius:50%;background:#318b86}.route-city:nth-child(3n+2) i{background:#d19d42}.route-city:nth-child(3n) i{background:#c16b48}.route-city:not(:last-child):after{content:"→";font-weight:400;color:#b1b9ac;margin:0 15px 0 6px}.timeline{gap:0}.daycard{grid-template-columns:74px minmax(0,1fr) 62px;gap:14px;align-items:center;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:18px 0;background:transparent}.daycard:last-child{border:0}.daycard:hover{transform:none;background:#faf5eb}.daycard .date{font-size:19px}.daycard .route{font-size:12px;line-height:1.8;margin-top:5px}.daycard .pill{max-width:85px;overflow-wrap:anywhere;font-size:10px}.btn{font-size:12px;border-radius:8px;padding:8px 11px}.btn.primary{background:#247a82;border-color:#247a82}.map{border-radius:13px}.metric:nth-child(3n+1){background:#e5efeb}.metric:nth-child(3n+2){background:#f4e3d2}.metric:nth-child(3n){background:#f4ebd0}.stop{border-radius:13px}.time{background:#e0ecea;color:#24747b}.stop h4{font-size:16px}.budget-card:nth-child(3n+1){background:#e8f0e8}.budget-card:nth-child(3n+2){background:#f8ead6}.budget-card:nth-child(3n){background:#e7edf1}
+.ledger-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.ledger-list{margin-top:15px}.ledger-row{display:grid;grid-template-columns:minmax(150px,1fr) 120px 90px 75px;gap:13px;padding:15px 0;align-items:center;border-bottom:1px solid var(--line)}.ledger-row small{display:block;font-size:11px;color:var(--muted);margin-top:4px}.ledger-row strong{font-size:16px}.balance-table{border-collapse:collapse;width:100%;font-size:13px;margin-top:16px}.balance-table td,.balance-table th{padding:11px 5px;text-align:right;border-bottom:1px solid var(--line)}.balance-table td:first-child,.balance-table th:first-child{text-align:left}.balance-table th{font-size:11px;color:var(--muted);font-weight:500}.positive{color:#24786b}.negative{color:#b35635}.split-check{display:flex;align-items:center;gap:10px;padding:9px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px}.split-check input[type=checkbox]{width:17px}.split-check input[type=number]{max-width:130px;margin-left:auto}.split-check span{flex:1}dialog{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:19px;width:min(680px,calc(100% - 24px));max-height:91vh;padding:23px}dialog::backdrop{background:#123f5066;backdrop-filter:blur(3px)}dialog h2{font-size:23px;margin-top:0}.dialog-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:16px}.ledger-empty{padding:30px 15px;text-align:center;background:#f8f4ea;border-radius:12px;color:#70766b;font-size:13px}.alert-text{color:#ab4a30;font-size:13px}.party-list{display:flex;gap:9px;flex-wrap:wrap}.party-item{padding:7px 11px;border-radius:9px;background:#e6eeea;font-size:13px}button:focus-visible,a:focus-visible{outline:3px solid #d3a345;outline-offset:3px}.fallback-map{width:100%;height:100%;background:#e8eee6}.fallback-map text{font-size:10px;fill:#254c53}
+@media(max-width:950px){.hero-grid{grid-template-columns:1fr 1fr;gap:20px}.hero-kpi b{font-size:20px}.grid,.split{grid-template-columns:1fr}.hero-panel{max-width:none}}
+@media(max-width:650px){.app{padding:10px 12px 45px}.hero{padding:24px 20px;min-height:0;border-radius:18px}.hero-grid{grid-template-columns:1fr;min-height:0;gap:24px}.hero h1{font-size:43px}.hero-panel{padding:11px}.hero-kpi{padding:12px}.hero-cta{margin-top:16px}.nav{flex-wrap:nowrap;overflow:auto;top:0;margin:12px 0}.nav button{flex-shrink:0;padding:10px 13px;font-size:12px}.card{padding:16px}.kpis{gap:8px}.kpi{padding:12px}.kpi b{font-size:21px}.daycard{grid-template-columns:59px minmax(0,1fr) 48px;gap:9px}.daycard .btn{grid-column:auto;width:auto;padding:7px}.daycard b{font-size:13px}.daycard .route{font-size:11px}.daycard .date{font-size:16px}.route-city{font-size:12px;gap:6px}.route-city:not(:last-child):after{margin:0 9px 0 2px}.ledger-row{grid-template-columns:1fr 105px;gap:8px}.ledger-row .btn{justify-self:start}.balance-table{font-size:12px}.balance-table td{padding:10px 2px}.today-card b{font-size:14px}.day-head{flex-wrap:wrap}}
+</style></head>
+<body>
+<div class="app">
+<header class="hero">
+  <div class="hero-grid">
+    <div>
+      <span class="kicker">🇹🇷 TÜRKİYE · 2026.09.18–09.27</span>
+      <h1>火雞熱氣球<br>大冒險</h1>
+      <p>清晨追氣球，午後追海風，晚上追烤肉。<br>把早起留給卡帕，把胃留給土耳其——氣球飛成，就解鎖地中海支線！</p><div class="hero-cta"><button class="btn" onclick="openDay(0)">開始這趟冒險 ↗</button><button class="btn" onclick="showTab('budget')">查看預算與分帳</button></div>
+    </div>
+    <div class="hero-panel">
+      <div class="hero-kpis">
+        <div class="hero-kpi"><small>目前版本</small><b id="heroVersion">—</b></div>
+        <div class="hero-kpi"><small>距離出發</small><b id="countdown">—</b></div>
+        <div class="hero-kpi"><small>全團總預估</small><b id="heroCost">—</b></div>
+        <div class="hero-kpi"><small>旅行天數</small><b>10 天</b></div>
+      </div>
+      <div class="versionbar">
+        <button class="vbtn" data-version="A">A｜9/20 夜巴</button>
+        <button class="vbtn" data-version="B">B｜9/21 飛 AYT</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <button class="active" data-tab="home">首頁</button>
+  <button data-tab="daily">每日行程</button>
+  <button data-tab="budget">預算與分帳</button>
+  <button data-tab="bookings">預訂進度</button>
+  <button data-tab="checklist">注意事項・行李</button>
+  <button data-tab="settings">設定</button>
+</nav>
+
+<section id="home" class="section active">
+  <div class="branch" id="branchRule"></div>
+  <div class="kpis">
+    <div class="kpi"><small>住宿晚數</small><b id="nightsKpi">—</b></div>
+    <div class="kpi"><small>長途移動</small><b id="longMovesKpi">—</b></div>
+    <div class="kpi"><small>全團總預估</small><b id="costKpi">—</b></div>
+    <div class="kpi"><small>下一個重點</small><b id="nextKpi">🎈 熱氣球</b></div>
+  </div>
+
+  <div class="today-card">
+    <div><small class="muted">旅行模式捷徑</small><b id="smartTitle">先用總覽確認整趟，再進每日行程調細節</b><div class="muted" id="smartDesc">所有修改會自動保存。</div></div>
+    <button class="btn primary" onclick="openDay(0)">打開第一天</button>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>這趟會去的城市</h2>
+    <div id="routeStrip" class="route-strip"></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>總行程</h2>
+      <div id="timeline" class="timeline"></div>
+    </div>
+    <div class="card">
+      <h2>整趟路線圖</h2>
+      <div id="overviewMap" class="map"></div>
+      <div class="muted" style="margin-top:8px">地圖為視覺化路線；每日頁可一鍵打開 Google Maps 實際導航。</div>
+    </div>
+  </div>
+</section>
+
+<section id="daily" class="section">
+  <div class="card">
+    <div class="day-head">
+      <div>
+        <div class="day-select">
+          <button id="prevDay" class="btn">←</button>
+          <select id="daySelect" style="width:auto;min-width:210px"></select>
+          <button id="nextDay" class="btn">→</button>
+        </div>
+        <h2 id="dayTitle"></h2>
+        <div class="muted" id="daySubtitle"></div>
+      </div>
+      <button id="addStopBtn" class="btn primary">＋ 新增行程</button>
+    </div>
+    <div class="metrics">
+      <div class="metric"><small>最佳起床</small><strong id="wakeTime">—</strong></div>
+      <div class="metric"><small>第一個行程</small><strong id="firstTime">—</strong></div>
+      <div class="metric"><small>預計結束</small><strong id="endTime">—</strong></div>
+      <div class="metric"><small>交通時間</small><strong id="travelTime">—</strong></div>
+      <div class="metric"><small>當日花費</small><strong id="dayCost">—</strong></div>
+    </div>
+    <div class="split">
+      <div id="stopList" class="stops"></div>
+      <div>
+        <div id="dayMap" class="map"></div>
+        <div class="actions" style="margin-top:10px">
+          <a id="gRouteBtn" class="btn primary" target="_blank">Google Maps 全日路線</a>
+          <button class="btn" onclick="window.print()">列印 / 存 PDF</button>
+        </div>
+        <div class="notice" style="margin-top:12px">車程會依座標、交通方式與平均速度估算；飛機、夜巴、長途接駁建議直接填「交通分鐘」覆寫估算值。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="budget" class="section">
+  <div class="card">
+    <h2>預算總覽</h2>
+    <div class="muted">以下統計目前行程裡已輸入的門票與其他花費。機票、住宿、租車若你之後輸入，也會一起被納入。</div>
+    <div id="budgetCats" class="category-grid" style="margin-top:14px"></div>
+  </div>
+</section>
+
+<section id="bookings" class="section">
+  <div class="card">
+    <h2>預訂進度</h2>
+    <div class="progress"><div id="bookingProgress"></div></div>
+    <div id="bookingGrid" class="booking-grid"></div>
+  </div>
+</section>
+
+<section id="checklist" class="section">
+  <div class="grid">
+    <div class="card"><h2>出發前注意事項</h2><div class="progress"><div id="noticeProgress"></div></div><div id="notices" class="check-grid"></div></div>
+    <div class="card"><h2>行李清單</h2><div class="progress"><div id="packingProgress"></div></div><div id="packing" class="check-grid"></div></div>
+  </div>
+</section>
+
+<section id="settings" class="section">
+  <div class="grid">
+    <div class="card">
+      <h2>匯率設定</h2>
+      <div class="formgrid">
+        <label>TRY → TWD<input id="fxTry" type="number" step="0.01"></label>
+        <label>EUR → TWD<input id="fxEur" type="number" step="0.1"></label>
+      </div>
+      <div class="notice" style="margin-top:12px">票價與匯率都可能變動，出發前再更新一次最準。</div>
+    </div>
+    <div class="card">
+      <h2>資料管理</h2>
+      <div class="actions">
+        <button id="exportBtn" class="btn primary">匯出 JSON</button>
+        <label class="btn">匯入 JSON<input id="importFile" type="file" accept="application/json" style="display:none"></label>
+        <button id="resetBtn" class="btn danger">恢復預設</button>
+      </div>
+      <div class="footer">所有變更會存在此瀏覽器的 localStorage。換裝置前，先匯出 JSON 備份即可。</div>
+    </div>
+  </div>
+</section>
+</div>
+
+<div id="stopModal" class="modal">
+  <div class="modalbox">
+    <div class="modalhead"><h3 id="modalTitle">編輯行程</h3><button id="closeModal" class="btn">✕</button></div>
+    <form id="stopForm" class="formgrid">
+      <input type="hidden" id="editIndex">
+      <label>時間<input id="fTime" type="time" required></label>
+      <label>景點 / 行程名稱<input id="fName" required></label>
+      <label>交通方式<select id="fMode"><option value="walk">步行</option><option value="metro">地鐵/大眾運輸</option><option value="scooter">機車</option><option value="car">租車</option><option value="bus">巴士/夜巴</option><option value="flight">飛機</option><option value="transfer">接駁/計程車</option></select></label>
+      <label>停留分鐘<input id="fStay" type="number" min="0"></label>
+      <label>緯度<input id="fLat" type="number" step="0.000001"></label>
+      <label>經度<input id="fLng" type="number" step="0.000001"></label>
+      <label>交通分鐘（留空自動估算）<input id="fTravel" type="number" min="0"></label>
+      <label>其他花費 TRY<input id="fCostTry" type="number" min="0"></label>
+      <label>票價 TRY<input id="fTicketTry" type="number" min="0"></label>
+      <label>票價 EUR<input id="fTicketEur" type="number" min="0" step="0.5"></label>
+      <label class="wide">Google Maps 搜尋字串<input id="fMapQuery"></label>
+      <label class="wide">官方 / 參考連結<input id="fOfficial"></label>
+      <label class="wide">景點資訊 / 注意事項<textarea id="fDesc"></textarea></label>
+      <div class="wide actions"><button class="btn primary" type="submit">儲存</button><button class="btn" id="cancelModal" type="button">取消</button></div>
+    </form>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const STORAGE_KEY="turkeyTripPlanner_pro_color_v3";
+const seed = {
+  version:"A", fxTry:0.76, fxEur:35.8,
+  notices:[
+    ["passport","護照效期確認（建議至少 6 個月）"],["insurance","旅平險＋不便險"],["esim","eSIM / 漫遊設定"],
+    ["cards","信用卡海外刷卡通知與備用卡"],["license","國際駕照＋台灣駕照正本"],["rental","租車保險、跨城市還車條款確認"],
+    ["balloon","熱氣球確認取消/改期規則"],["nightbus","夜巴班次與行李規則"],["museum","重要景點開放時間出發前再查"],
+    ["cash","準備少量歐元/里拉現金"],["offline","Google Maps 離線地圖"],["weather","卡帕清晨保暖、地中海防曬"]
+  ],
+  packing:[
+    ["passport","護照＋護照影本"],["license","國際駕照＋台灣駕照"],["cards","信用卡×2"],["cash","現金/零錢"],
+    ["adapter","歐規雙圓腳轉接頭"],["power","行動電源＋充電線"],["sunscreen","防曬＋太陽眼鏡＋帽子"],
+    ["jacket","薄外套/防風外套（熱氣球清晨）"],["shoes","好走的鞋"],["swim","泳衣/快乾衣"],["meds","常備藥"],
+    ["bag","小包/防盜包"],["bottle","水壺"],["wet","濕紙巾/衛生紙"],["laundry","簡易洗衣用品"],["airtags","行李追蹤器"]
+  ],
+  checked:{},
+  plans:{
+   A:[
+    {date:"9/18",title:"伊斯坦堡 → 卡帕多奇亞",sleep:"卡帕多奇亞",tag:"抵達日",stops:[
+      S("17:00","抵達 Istanbul Airport","flight",60,41.2753,28.7519,"Istanbul Airport",0,0,0,"抵達後辦理入境、領行李。國內線時間依實際購票調整。",""),
+      S("20:00","飛往 Cappadocia（NAV/ASR）","flight",80,38.7719,34.5346,"Nevşehir Kapadokya Airport",150,0,0,"國內線；若飛 ASR，接駁至 Göreme 會更久。",""),
+      S("22:30","Göreme 洞穴飯店入住","transfer",30,38.6431,34.8287,"Goreme Turkey",60,0,0,"這天不排硬景點，讓隔天熱氣球保留體力。","")
+    ]},
+    {date:"9/19",title:"熱氣球＋綠線精華",sleep:"卡帕多奇亞",tag:"機車",stops:[
+      S("04:30","熱氣球接送 / 起飛","transfer",210,38.6530,34.8330,"Cappadocia hot air balloon",20,0,0,"核心行程。實際接送依熱氣球公司通知。",""),
+      S("09:30","Göreme 早餐休息","walk",60,38.6431,34.8287,"Goreme",0,350,0,"熱氣球回來先休息。",""),
+      S("10:45","Pigeon Valley","scooter",35,38.6267,34.8078,"Pigeon Valley Cappadocia",null,0,0,"免費觀景點，停 30–40 分鐘即可。",""),
+      S("12:00","Kaymaklı Underground City","scooter",90,38.4604,34.7510,"Kaymakli Underground City",null,0,13,"官方目前 08:00–20:00；票價 €13。狹窄、低矮通道較多。","https://muze.gov.tr/muze-detay?distId=KYY&sectionId=KYY01"),
+      S("14:15","Uçhisar 午餐＋城堡周邊","scooter",110,38.6303,34.8050,"Uchisar Castle",null,550,0,"午餐＋高點景觀。城堡門票依現場公告。",""),
+      S("17:00","Love Valley / 日落","scooter",100,38.6620,34.8190,"Love Valley Cappadocia",null,0,0,"日落前提早找位置，天黑後再回 Göreme。","")
+    ]},
+    {date:"9/20",title:"看熱氣球＋紅線＋夜巴",sleep:"夜巴",tag:"機車・夜巴",stops:[
+      S("05:30","看熱氣球升空","scooter",90,38.6506,34.8339,"Goreme sunrise point",null,0,0,"若 9/19 已搭成功，這天改成地面看滿天熱氣球。",""),
+      S("08:30","Göreme Open Air Museum","scooter",120,38.6400,34.8450,"Goreme Open Air Museum",null,0,0,"官方 08:00–18:45。門票請出發前再確認；想省預算可刪。","https://muze.gov.tr/muze-detay?distId=GRM&sectionId=GRM01"),
+      S("11:15","Paşabağ Fairy Chimneys","scooter",60,38.6770,34.8530,"Pasabag Cappadocia",null,0,0,"經典蘑菇型仙人煙囪。",""),
+      S("12:40","Devrent Valley","scooter",35,38.6734,34.8845,"Devrent Valley",null,0,0,"免費，拍奇岩造型。",""),
+      S("13:40","Avanos 午餐＋散步","scooter",90,38.7167,34.8467,"Avanos Turkey",null,550,0,"陶藝小鎮、河邊散步。",""),
+      S("16:15","Red / Rose Valley 日落","scooter",130,38.6539,34.8636,"Red Valley Cappadocia",null,0,0,"卡帕日落首選之一。",""),
+      S("20:30","夜巴 Göreme → Antalya","bus",600,36.8969,30.7133,"Antalya Otogar",600,0,0,"若 9/19 或 9/20 熱氣球成功，就走 A 版。車次以實際購票為準。","")
+    ]},
+    {date:"9/21",title:"Antalya 一日遊",sleep:"安塔莉亞",tag:"市區",stops:[
+      S("07:30","抵達 Antalya＋早餐","walk",70,36.8969,30.7133,"Antalya Otogar",0,350,0,"夜巴抵達後先早餐、寄放行李。",""),
+      S("09:30","Hadrian's Gate","metro",35,36.8852,30.7084,"Hadrian's Gate Antalya",null,0,0,"免費，Kaleiçi 經典入口。",""),
+      S("10:15","Kaleiçi Old Town","walk",150,36.8840,30.7040,"Kaleici Antalya",null,400,0,"慢慢逛老城、咖啡店、港口。",""),
+      S("13:30","Old Harbor 午餐","walk",90,36.8849,30.7017,"Antalya Old Harbor",null,650,0,"海港午餐。",""),
+      S("16:00","Konyaaltı Beach","metro",150,36.8663,30.6367,"Konyaalti Beach",null,250,0,"海邊放鬆到日落。","")
+    ]},
+    {date:"9/22",title:"Antalya → D400 → Kaş",sleep:"卡什",tag:"租車・D400",stops:[
+      S("07:30","取租車＋早餐","car",60,36.8969,30.7133,"Antalya car rental",0,350,0,"最晚 09:00 前離開 Antalya。",""),
+      S("09:45","Phaselis（可選）","car",75,36.5245,30.5516,"Phaselis Ancient City",null,0,0,"古城＋海灣；若想一路慢開可保留，若要更早到 Kaş 可刪。",""),
+      S("12:00","D400 海岸公路沿途停靠","car",90,36.2448,30.0230,"D400 Antalya Kas",null,450,0,"沿路觀景、簡單午餐。不要為了打卡把 D400 開成純移動。",""),
+      S("15:00","Kaş Old Town / 港口","car",130,36.1996,29.6400,"Kas Turkey",null,300,0,"下午抵達 Kaş 後逛老城。半日跳島不建議硬塞；若找到 15:00 後夕陽船再臨時加入。",""),
+      S("18:15","Kaş 夕陽＋晚餐","walk",150,36.1996,29.6400,"Kas Turkey sunset",0,700,0,"住 Kaş。","")
+    ]},
+    {date:"9/23",title:"Kaş → Fethiye → Pamukkale",sleep:"棉堡",tag:"租車",stops:[
+      S("07:30","Kaş 早餐","walk",45,36.1996,29.6400,"Kas Turkey",0,350,0,"08:00 左右離開。",""),
+      S("08:30","Kaputaş Beach","car",40,36.2280,29.4492,"Kaputas Beach",null,0,0,"拍照 30–40 分鐘；這天不建議下海久玩。",""),
+      S("09:25","Kalkan","car",35,36.2651,29.4142,"Kalkan Turkey",null,0,0,"港口小鎮短停。",""),
+      S("11:30","Ölüdeniz / Fethiye","car",120,36.5492,29.1150,"Oludeniz Fethiye",null,600,0,"午餐＋海灘。若加滑翔翼，後面抵達棉堡會大幅變晚。",""),
+      S("14:00","前往 Pamukkale","car",190,37.9137,29.1187,"Pamukkale Turkey",null,200,0,"不去 Salda Lake，直接前往棉堡。",""),
+      S("17:30","Pamukkale 入住＋夕陽","walk",100,37.9137,29.1187,"Pamukkale travertines",0,450,0,"傍晚到棉堡，完整遺址留隔天早上。","")
+    ]},
+    {date:"9/24",title:"Pamukkale → Ephesus → İzmir",sleep:"伊茲密爾",tag:"租車・還車",stops:[
+      S("08:00","Pamukkale＋Hierapolis","walk",210,37.9265,29.1260,"Hierapolis Pamukkale",0,0,30,"官方目前主票 €30；建議開門就進。","https://muze.gov.tr/Language/Index/EN?url=%2Fmuze-detay%3FSectionId%3DPMK01%26DistId%3DPMK"),
+      S("11:30","開車前往 Ephesus","car",165,37.9390,27.3410,"Ephesus Ancient City",null,250,0,"途中簡單吃東西。",""),
+      S("14:30","Ephesus Ancient City","walk",180,37.9390,27.3410,"Ephesus Ancient City",0,0,0,"塞爾蘇斯圖書館、大劇場、Curetes Street。主票價出發前以官方為準。","https://muze.gov.tr/"),
+      S("17:45","前往 İzmir＋還車","car",85,38.4237,27.1428,"Izmir Turkey",null,0,0,"抵達後還車、入住。",""),
+      S("20:00","Kordon 晚餐","walk",100,38.4392,27.1392,"Izmir Kordon",0,700,0,"海邊散步。","")
+    ]},
+    {date:"9/25",title:"İzmir 半日 → Istanbul",sleep:"伊斯坦堡",tag:"飛機・地鐵",stops:[
+      S("08:30","Konak Square＋Clock Tower","metro",45,38.4189,27.1287,"Izmir Clock Tower",null,0,0,"免費，市中心地標。",""),
+      S("09:30","Kemeraltı Bazaar","walk",120,38.4198,27.1347,"Kemeralti Bazaar",null,500,0,"市集＋咖啡＋伴手禮。",""),
+      S("13:00","前往 İzmir ADB","metro",90,38.2924,27.1570,"Izmir Adnan Menderes Airport",null,0,0,"建議搭 15:00–17:00 左右班機。",""),
+      S("16:00","飛 Istanbul","flight",75,41.2753,28.7519,"Istanbul Airport",120,0,0,"班次依實際購票。",""),
+      S("19:30","Galata / Karaköy 夜景","metro",150,41.0256,28.9741,"Galata Tower",90,700,0,"第一晚先玩新城區。","")
+    ]},
+    {date:"9/26",title:"Istanbul 老城＋生日",sleep:"伊斯坦堡",tag:"生日",stops:[
+      S("09:00","Topkapı Palace＋Harem","walk",210,41.0115,28.9834,"Topkapi Palace",0,2750,0,"外國旅客 Topkapı＋Aya İrini＋Harem 聯票目前 ₺2,750；Topkapı 週二休館。","https://www.millisaraylar.gov.tr/Lokasyon/2/topkapi"),
+      S("12:45","Sultanahmet 午餐","walk",60,41.0054,28.9768,"Sultanahmet Istanbul",0,650,0,"老城午餐。",""),
+      S("14:00","Hagia Sophia＋Blue Mosque","walk",90,41.0054,28.9768,"Hagia Sophia",0,0,0,"清真寺需注意服裝與禮拜時段。",""),
+      S("15:45","Basilica Cistern","walk",60,41.0084,28.9779,"Basilica Cistern",0,0,0,"地下水宮，票價請出發前再確認。","https://yerebatan.com/"),
+      S("18:30","Bosphorus 日落","metro",60,41.0165,28.9706,"Galata Bridge Istanbul",null,250,0,"生日晚餐前看海峽。",""),
+      S("20:00","🎂 生日晚餐＋甜點","walk",150,41.0300,28.9800,"Karakoy Istanbul",0,1600,0,"把晚上留給生日，不安排大市集。","")
+    ]},
+    {date:"9/27",title:"Istanbul Shopping → 回台灣",sleep:"飛機",tag:"Shopping",stops:[
+      S("08:30","Spice Bazaar / Grand Bazaar","metro",120,41.0166,28.9705,"Spice Bazaar Istanbul",null,1200,0,"最後採買，依住宿位置二選一。",""),
+      S("10:45","回飯店拿行李","metro",30,41.0110,28.9700,"Istanbul",null,0,0,"不要逛到太晚。",""),
+      S("11:30","前往 IST","metro",75,41.2753,28.7519,"Istanbul Airport",null,0,0,"15:55 國際線，建議 12:30 左右抵達機場。",""),
+      S("15:55","Istanbul → Taipei","flight",720,25.0797,121.2342,"Taiwan Taoyuan International Airport",0,0,0,"9/28 08:30 抵達桃園。","")
+    ]}
+   ],
+   B:[]
+  }
+};
+
+function S(time,name,mode,stay,lat,lng,mapQuery,travel,costTry,ticketEur,desc,official){
+ return {time,name,mode,stay,lat,lng,mapQuery,travel,costTry,ticketTry:0,ticketEur,desc,official};
+}
+
+
+// B 版：9/20 不搭夜巴；9/21 最後熱氣球備用＋夜巴；9/22 Antalya；9/23 直接 Pamukkale；不去 Fethiye / Salda.
+seed.plans.B = JSON.parse(JSON.stringify(seed.plans.A));
+seed.plans.B[2] = {date:"9/20",title:"熱氣球備用②＋紅線",sleep:"卡帕多奇亞",tag:"機車",stops: seed.plans.A[2].stops.filter(x=>!x.name.includes("夜巴"))};
+seed.plans.B[3] = {date:"9/21",title:"熱氣球最後備用＋Göreme＋夜巴",sleep:"夜巴",tag:"備用日",stops:[
+ S("04:30","熱氣球最後備用","transfer",210,38.6530,34.8330,"Cappadocia hot air balloon",20,0,0,"9/19、9/20 都取消才使用。若仍取消，也在這天晚上離開卡帕。",""),
+ S("10:00","Göreme 逛街＋咖啡","walk",150,38.6431,34.8287,"Goreme Turkey",0,500,0,"買伴手禮、放鬆。",""),
+ S("14:30","土耳其浴 Hamam","walk",120,38.6431,34.8287,"Turkish bath Goreme",null,1200,0,"完整浴程抓 1.5–2 小時。",""),
+ S("20:30","夜巴 Göreme → Antalya","bus",600,36.8969,30.7133,"Antalya Otogar",600,0,0,"這版 9/22 才抵達 Antalya。","")
+]};
+seed.plans.B[4] = {date:"9/22",title:"Antalya 完整一日",sleep:"安塔莉亞",tag:"市區",stops:[
+ S("07:30","抵達 Antalya＋早餐","walk",80,36.8969,30.7133,"Antalya Otogar",0,350,0,"先寄行李、早餐。",""),
+ S("09:30","Hadrian's Gate","metro",35,36.8852,30.7084,"Hadrian's Gate Antalya",null,0,0,"免費。",""),
+ S("10:15","Kaleiçi Old Town","walk",150,36.8840,30.7040,"Kaleici Antalya",null,450,0,"老城、咖啡、港口。",""),
+ S("13:30","Old Harbor 午餐","walk",90,36.8849,30.7017,"Antalya Old Harbor",null,650,0,"海港午餐。",""),
+ S("16:00","Konyaaltı Beach","metro",160,36.8663,30.6367,"Konyaalti Beach",null,300,0,"海邊放鬆到日落。","")
+]};
+seed.plans.B[5] = {date:"9/23",title:"Antalya → Pamukkale",sleep:"棉堡",tag:"租車",stops:[
+ S("07:30","Antalya 早餐＋取車","car",60,36.8969,30.7133,"Antalya car rental",0,350,0,"08:30 前出發較舒服。",""),
+ S("08:30","開車前往 Pamukkale","car",210,37.9137,29.1187,"Pamukkale Turkey",null,200,0,"不去 Fethiye、不去 Salda Lake。",""),
+ S("12:30","Pamukkale 午餐＋入住","walk",75,37.9137,29.1187,"Pamukkale Turkey",0,500,0,"下午留給棉堡。",""),
+ S("14:00","Pamukkale＋Hierapolis","walk",240,37.9265,29.1260,"Hierapolis Pamukkale",0,0,30,"官方目前主票 €30。這版可以比 A 版更悠閒。","https://muze.gov.tr/Language/Index/EN?url=%2Fmuze-detay%3FSectionId%3DPMK01%26DistId%3DPMK"),
+ S("18:30","棉堡夕陽＋晚餐","walk",120,37.9137,29.1187,"Pamukkale Turkey",0,650,0,"晚上住棉堡。","")
+]};
+seed.plans.B[6] = {date:"9/24",title:"Pamukkale → Ephesus → İzmir",sleep:"伊茲密爾",tag:"租車・還車",stops:[
+ S("08:00","早餐後離開 Pamukkale","car",165,37.9390,27.3410,"Ephesus Ancient City",null,200,0,"因 9/23 已完整玩棉堡，今天直接去 Ephesus。",""),
+ S("11:00","Ephesus Ancient City","walk",210,37.9390,27.3410,"Ephesus Ancient City",0,0,0,"留 3–3.5 小時。","https://muze.gov.tr/"),
+ S("15:00","前往 İzmir＋還車","car",85,38.4237,27.1428,"Izmir Turkey",null,0,0,"下午到 İzmir，後段更輕鬆。",""),
+ S("17:00","Konak / Kordon","walk",180,38.4392,27.1392,"Izmir Kordon",0,900,0,"提早開始玩 İzmir。","")
+]};
+
+// 2026-09 新版行程：依最新確認表重編。既有分帳／設定會在載入時保留，只更新行程與預訂清單。
+seed.itineraryVersion = "2026-09-route-v2";
+seed.plans.A = [
+ {date:"9/18",title:"台南 → 桃園 → Istanbul → Göreme",sleep:"Göreme",tag:"飛行・接駁",stops:[
+  S("01:00","台南搭和欣前往桃園機場","bus",240,22.9999,120.2269,"Tainan Bus Station",0,0,0,"預留轉乘、報到與行李托運時間。",""),
+  S("09:35","TK125 台北飛 Istanbul","flight",755,25.0797,121.2342,"Taiwan Taoyuan International Airport",0,0,0,"17:10 抵達 IST，依票面航廈與登機門移動。",""),
+  S("20:25","TK2022 Istanbul 飛 Kayseri","flight",85,41.2753,28.7519,"Istanbul Airport",120,0,0,"21:50 抵達 ASR。",""),
+  S("22:10","ASR 包車進卡帕多奇亞","transfer",70,38.7704,35.4954,"Kayseri Erkilet Airport",0,0,0,"約 23:20 抵達飯店。",""),
+  S("23:20","Göreme 飯店入住","walk",20,38.6431,34.8287,"Goreme Turkey",0,0,0,"快速整理後休息，隔天清晨熱氣球。","")
+ ]},
+ {date:"9/19",title:"熱氣球①＋卡帕綠線",sleep:"Göreme",tag:"熱氣球・包車",stops:[
+  S("04:30","熱氣球① 接送／起飛","transfer",210,38.6530,34.8330,"Cappadocia hot air balloon",20,0,0,"實際接送時間依氣球公司前一晚通知；費用另計。",""),
+  S("08:30","回飯店早餐","transfer",60,38.6431,34.8287,"Goreme Turkey",15,0,0,"先補充體力再開始綠線。",""),
+  S("10:00","Göreme Panorama","car",35,38.6416,34.8147,"Goreme Panorama",20,0,0,"卡帕地貌全景觀景台。",""),
+  S("11:00","Derinkuyu 地下城","car",90,38.3736,34.7340,"Derinkuyu Underground City",45,0,13,"目前參考票價 €13；地下通道狹窄，怕幽閉者量力而為。","https://muze.gov.tr/urun-ekle?catalogNo=WEB-CUM01-87-009"),
+  S("13:00","Ihlara Valley","car",75,38.2505,34.3011,"Ihlara Valley",50,0,0,"峽谷健行依體力調整路段。",""),
+  S("14:30","Belisırma 午餐","car",75,38.2843,34.2883,"Belisirma Turkey",15,550,0,"河畔用餐。",""),
+  S("16:10","Selime Monastery","car",55,38.3027,34.2590,"Selime Monastery",25,0,0,"岩窟修道院，階梯較多。",""),
+  S("17:35","Pigeon Valley","car",35,38.6267,34.8078,"Pigeon Valley Cappadocia",65,0,0,"回程短停觀景。",""),
+  S("18:15","Göreme Sunset Point","car",55,38.6438,34.8320,"Goreme Sunset Point",15,0,0,"18:42 日落；建議提早抵達卡位。","")
+ ]},
+ {date:"9/20",title:"熱氣球日出＋紅線＋夜巴",sleep:"夜巴 / Göreme＊",tag:"機車・夜巴",stops:[
+  S("05:30","地面看熱氣球＋日出","scooter",90,38.6506,34.8339,"Goreme sunrise point",15,0,0,"若前一天成功搭乘，今天從地面拍熱氣球。",""),
+  S("08:30","Göreme 露天博物館","scooter",120,38.6400,34.8450,"Goreme Open Air Museum",20,0,20,"目前參考票價 €20。","https://muze.gov.tr/urun-ekle?catalogNo=WEB-CUM01-87-009"),
+  S("11:00","Paşabağ Fairy Chimneys","scooter",55,38.6770,34.8530,"Pasabag Cappadocia",20,0,0,"經典蘑菇型仙人煙囪。",""),
+  S("12:10","Zelve Open Air Museum","scooter",65,38.6794,34.8636,"Zelve Open Air Museum",10,0,0,"部分區域可能有現場小額票。",""),
+  S("13:30","Avanos 午餐＋散步","scooter",85,38.7167,34.8467,"Avanos Turkey",20,550,0,"陶藝小鎮與河岸。",""),
+  S("15:20","Devrent Valley","scooter",35,38.6734,34.8845,"Devrent Valley",20,0,0,"奇岩拍照短停。",""),
+  S("16:15","Love Valley","scooter",45,38.6620,34.8190,"Love Valley Cappadocia",25,0,0,"視時間與路況調整停留。",""),
+  S("17:40","Red / Rose Valley 日落","scooter",75,38.6539,34.8636,"Red Valley Cappadocia",25,0,0,"18:41 日落。",""),
+  S("19:30","晚餐＋土耳其浴","walk",150,38.6431,34.8287,"Turkish bath Goreme",20,1200,0,"先確認浴場結束時間並保留夜巴報到時間。",""),
+  S("23:00","夜巴 Göreme → Antalya","bus",540,36.8969,30.7133,"Antalya Otogar",30,0,0,"A 版：氣球已成功，今晚離開卡帕；班次依實際車票。","")
+ ]},
+ {date:"9/21",title:"Antalya 老城＋D400 海岸線 → Kaş",sleep:"Kaş",tag:"租車・D400",stops:[
+  S("07:30","夜巴抵達 Antalya＋取車","car",60,36.8969,30.7133,"Antalya Otogar",0,350,0,"早餐、整理與取車。",""),
+  S("09:00","Hadrian's Gate","car",30,36.8852,30.7084,"Hadrian's Gate Antalya",20,0,0,"免費，Kaleiçi 經典入口。",""),
+  S("09:40","Kaleiçi＋Old Harbor","walk",80,36.8849,30.7017,"Antalya Old Harbor",10,0,0,"老城與港口精華散步。",""),
+  S("11:35","Phaselis","car",70,36.5245,30.5516,"Phaselis Ancient City",60,0,0,"票價出發前再確認官方公告。","https://muze.gov.tr/"),
+  S("14:10","Demre 午餐","car",60,36.2440,29.9850,"Demre Turkey",85,550,0,"簡單用餐，避免後段太趕。",""),
+  S("15:20","St. Nicholas Church","car",55,36.2442,29.9857,"St Nicholas Church Demre",10,0,0,"票價出發前再確認官方公告。","https://muze.gov.tr/"),
+  S("17:10","Kaputaş Beach","car",35,36.2280,29.4492,"Kaputas Beach",75,0,0,"以拍照與短停為主。",""),
+  S("18:20","Kaş 日落＋老城","car",110,36.1996,29.6400,"Kas Turkey sunset",30,700,0,"入住後在港口周邊看日落、吃晚餐。","")
+ ]},
+ {date:"9/22",title:"Kekova 沉沒之城＋Kaş 慢遊",sleep:"Kaş②",tag:"乘船・慢遊",stops:[
+  S("08:00","Kaş 早餐","walk",60,36.1996,29.6400,"Kas Turkey",0,350,0,"依船公司集合時間調整。",""),
+  S("09:30","Kekova／沉沒之城半日船","transfer",240,36.1914,29.8615,"Kekova Sunken City",25,0,0,"船票依最後選定的船公司；確認是否含接駁與午餐。",""),
+  S("14:00","午餐＋休息","walk",100,36.1996,29.6400,"Kas Old Town",25,650,0,"下午刻意留白。",""),
+  S("16:00","Kaş 老城＋海邊","walk",120,36.1996,29.6400,"Kas Marina",0,250,0,"逛小店、港口與海岸。",""),
+  S("18:30","Kaş 日落＋晚餐","walk",150,36.1996,29.6400,"Kas Turkey sunset",0,750,0,"第二晚慢慢享受 Kaş。","")
+ ]},
+ {date:"9/23",title:"Kaş → Kalkan → Ölüdeniz → Pamukkale",sleep:"Pamukkale",tag:"租車・纜車",stops:[
+  S("08:00","Kaş 早餐","walk",55,36.1996,29.6400,"Kas Turkey",0,350,0,"09:00 準時出發。",""),
+  S("09:35","Kalkan 短停","car",30,36.2651,29.4142,"Kalkan Turkey",35,0,0,"港口小鎮短停。",""),
+  S("11:15","Ölüdeniz／Blue Lagoon","car",75,36.5492,29.1150,"Oludeniz Blue Lagoon",70,0,0,"海灣散步與拍照。",""),
+  S("12:30","Ölüdeniz 午餐","walk",50,36.5487,29.1156,"Oludeniz Turkey",5,550,0,"保留纜車報到時間。",""),
+  S("13:30","Babadağ 纜車","car",120,36.5668,29.1862,"Babadag Teleferik",25,0,0,"預留 13:30–15:30；官網最新票價尚不明確，出發前確認。","https://www.babadagteleferik.com/"),
+  S("16:00","開車前往 Pamukkale","car",210,37.9137,29.1187,"Pamukkale Turkey",0,0,0,"預計 19:00–19:30 抵達。",""),
+  S("19:20","Pamukkale 入住","walk",70,37.9137,29.1187,"Pamukkale Turkey",0,600,0,"晚餐後早點休息。","")
+ ]},
+ {date:"9/24",title:"Pamukkale＋Ephesus → İzmir",sleep:"İzmir",tag:"租車・還車",stops:[
+  S("08:15","Pamukkale 棉堡＋Hierapolis","walk",210,37.9265,29.1260,"Hierapolis Pamukkale",0,0,30,"目前參考票價 €30；包含棉堡與 Hierapolis。","https://muze.gov.tr/muze-detay?DistId=PMK&SectionId=PMK01"),
+  S("10:30","Antique Pool 區","walk",75,37.9250,29.1250,"Cleopatra Antique Pools Pamukkale",0,0,0,"是否下水依現場開放與票價決定。",""),
+  S("12:00","開車前往 Ephesus","car",165,37.9390,27.3410,"Ephesus Ancient City",0,250,0,"途中簡單吃東西。",""),
+  S("15:00","Ephesus 以弗所","walk",180,37.9390,27.3410,"Ephesus Ancient City",0,0,40,"目前參考票價 €40，含 Experience Museum；約 18:00 離開。","https://muze.gov.tr/muze-detay?DistId=EFS&SectionId=EFS01"),
+  S("18:00","前往 İzmir＋還車","car",90,38.4237,27.1428,"Izmir Turkey",0,0,0,"抵達後辦理還車與入住。",""),
+  S("20:00","Kordon 晚餐","walk",100,38.4392,27.1392,"Izmir Kordon",0,750,0,"海邊散步用餐。","")
+ ]},
+ {date:"9/25",title:"İzmir 半日＋飛 Istanbul＋海峽日落",sleep:"İstanbul",tag:"飛機・遊船",stops:[
+  S("08:30","İzmir 早餐","walk",50,38.4237,27.1428,"Izmir Turkey breakfast",0,350,0,"退房後開始市區散步。",""),
+  S("09:30","İzmir Clock Tower","walk",35,38.4189,27.1287,"Izmir Clock Tower",20,0,0,"免費地標。",""),
+  S("10:15","Kemeraltı Bazaar＋吃東西","walk",90,38.4198,27.1347,"Kemeralti Bazaar",10,500,0,"控制採買時間，預留前往機場。",""),
+  S("11:45","前往 ADB","metro",50,38.2924,27.1570,"Izmir Adnan Menderes Airport",0,0,0,"目標搭約 13:00 航班。",""),
+  S("13:00","ADB 飛 Istanbul","flight",75,41.2753,28.7519,"Istanbul Airport",90,0,0,"航班依最後訂票時間更新。",""),
+  S("16:00","飯店入住","metro",45,41.0220,28.9740,"Karakoy Istanbul",60,0,0,"放行李後前往碼頭。",""),
+  S("17:30","博斯普魯斯日落船","transfer",100,41.0380,29.0410,"Bosphorus Cruise Istanbul",30,0,0,"船票依最後選定的船公司。",""),
+  S("19:30","Karaköy Güllüoğlu","walk",35,41.0228,28.9747,"Karakoy Gulluoglu",20,350,0,"吃 baklava。",""),
+  S("20:15","Kamondo Stairs＋Galata Tower 塔下","walk",55,41.0256,28.9741,"Galata Tower",10,0,0,"不上塔免費。",""),
+  S("21:15","İstiklal 大街 → Taksim","walk",90,41.0369,28.9850,"Taksim Square",15,450,0,"依體力縮短，之後回飯店。","")
+ ]},
+ {date:"9/26",title:"Istanbul 老城全日＋生日晚餐",sleep:"İstanbul",tag:"生日・老城",stops:[
+  S("09:00","Topkapı Palace＋Harem＋Aya İrini","walk",210,41.0115,28.9834,"Topkapi Palace",0,2750,0,"目前參考套票 ₺2,750。","https://millisaraylar.gov.tr/Lokasyon/2/topkapi-sarayi"),
+  S("12:45","Sultanahmet 午餐","walk",55,41.0054,28.9768,"Sultanahmet Istanbul",10,650,0,"午餐後依人潮彈性調整順序。",""),
+  S("14:00","Basilica Cistern 地下水宮","walk",60,41.0084,28.9779,"Basilica Cistern",10,0,0,"票價待最後確認。","https://yerebatan.com/"),
+  S("15:15","Hagia Sophia 聖索菲亞","walk",65,41.0086,28.9802,"Hagia Sophia",5,0,25,"目前參考票價 €25；留意參觀入口與禮拜時間。","https://hagiasophiamuseums.org/en/stories/where-to-buy-hagia-sophia-tickets-online-vs-ticket-office"),
+  S("16:30","Blue Mosque＋Sultanahmet Square","walk",55,41.0054,28.9768,"Blue Mosque Istanbul",5,0,0,"免費；注意服裝與禮拜時段。",""),
+  S("17:40","Grand Bazaar","walk",75,41.0107,28.9680,"Grand Bazaar Istanbul",20,600,0,"依關門時間調整，避免太晚才抵達。",""),
+  S("19:10","回飯店休息／換衣","metro",60,41.0220,28.9740,"Karakoy Istanbul",25,0,0,"為生日晚餐留體力。",""),
+  S("20:30","🎂 生日晚餐","walk",150,41.0300,28.9800,"Istanbul birthday dinner",15,1800,0,"今晚不再塞景點，好好慶生。","")
+ ]},
+ {date:"9/27",title:"香料市集＋新清真寺 → 回台灣",sleep:"飛機",tag:"返程",stops:[
+  S("08:30","早餐","walk",45,41.0165,28.9706,"Eminonu Istanbul breakfast",0,350,0,"退房前確認行李。",""),
+  S("09:20","Spice Bazaar 香料市集","walk",55,41.0166,28.9705,"Spice Bazaar Istanbul",10,500,0,"最後採買。",""),
+  S("10:20","Yeni Cami 新清真寺","walk",35,41.0169,28.9715,"Yeni Cami Istanbul",5,0,0,"免費，留意禮拜時段。",""),
+  S("11:00","Eminönü 海邊＋回飯店拿行李","walk",40,41.0170,28.9700,"Eminonu Waterfront",5,0,0,"不要超過預定離開時間。",""),
+  S("11:40","前往 Istanbul Airport","metro",75,41.2753,28.7519,"Istanbul Airport",0,0,0,"最晚 11:30–11:45 出發。",""),
+  S("15:35","Istanbul 飛台灣","flight",720,25.0797,121.2342,"Taiwan Taoyuan International Airport",0,0,0,"9/28 抵達台灣。","")
+ ]}
+];
+
+seed.plans.B = JSON.parse(JSON.stringify(seed.plans.A));
+seed.plans.B[2] = {date:"9/20",title:"熱氣球備用②＋卡帕紅線",sleep:"Göreme",tag:"機車・備用",stops:seed.plans.A[2].stops.filter(s=>!s.name.includes("夜巴"))};
+seed.plans.B[3] = {date:"9/21",title:"熱氣球最後備用③＋飛 Antalya",sleep:"Antalya",tag:"熱氣球・飛機",stops:[
+ S("04:30","熱氣球最後備用③","transfer",210,38.6530,34.8330,"Cappadocia hot air balloon",20,0,0,"只有前兩次都取消才走 B 版。",""),
+ S("09:30","回飯店早餐＋整理","transfer",70,38.6431,34.8287,"Goreme Turkey",15,0,0,"退房並寄放行李。",""),
+ S("11:00","Göreme 逛街／午餐","walk",120,38.6431,34.8287,"Goreme Turkey",0,600,0,"保留前往 ASR 與國內線報到時間。",""),
+ S("14:00","前往 Kayseri Airport","transfer",75,38.7704,35.4954,"Kayseri Erkilet Airport",0,0,0,"實際時間配合最後購買的 ASR→AYT 航班。",""),
+ S("16:30","ASR 飛 Antalya AYT","flight",80,36.8987,30.8005,"Antalya Airport",90,0,0,"航班時間為規劃占位，訂票後可在每日行程編輯。",""),
+ S("19:00","Hadrian's Gate＋Kaleiçi","metro",80,36.8852,30.7084,"Hadrian's Gate Antalya",45,0,0,"抵達後走老城精華。",""),
+ S("20:20","Old Harbor 日落／晚餐","walk",100,36.8849,30.7017,"Antalya Old Harbor",10,750,0,"入住 Antalya。","")
+]};
+seed.plans.B[4] = {date:"9/22",title:"Antalya → D400 → Kaş",sleep:"Kaş",tag:"租車・D400",stops:[
+ S("08:00","Antalya 早餐＋取車","car",60,36.8969,30.7133,"Antalya car rental",0,350,0,"09:00 前出發。",""),
+ S("10:10","Phaselis","car",70,36.5245,30.5516,"Phaselis Ancient City",65,0,0,"票價出發前再確認官方公告。","https://muze.gov.tr/"),
+ S("12:50","Demre 午餐","car",55,36.2440,29.9850,"Demre Turkey",90,550,0,"簡單用餐。",""),
+ S("14:00","St. Nicholas Church","car",55,36.2442,29.9857,"St Nicholas Church Demre",10,0,0,"票價出發前再確認。","https://muze.gov.tr/"),
+ S("16:00","Kaputaş Beach","car",40,36.2280,29.4492,"Kaputas Beach",75,0,0,"海灘拍照短停。",""),
+ S("17:30","Kaş 老城＋港口","car",65,36.1996,29.6400,"Kas Marina",30,0,0,"入住後逛老城。",""),
+ S("18:40","Kaş 日落＋晚餐","walk",130,36.1996,29.6400,"Kas Turkey sunset",0,750,0,"B 版今晚抵達 Kaş。","")
+]};
+
+
+seed.bookings = seed.bookings || [
+ ["intl","國際機票","土耳其航空 TPE ↔ IST","done"],
+ ["domestic","國內線","TK2022 IST → ASR、ADB → IST；B版另含 ASR → AYT","todo"],
+ ["cappa","Göreme 住宿","9/18–9/19；B版另住 9/20","todo"],
+ ["balloon","熱氣球","9/19 首飛，9/20 備用②，B版 9/21 備用③","todo"],
+ ["nightbus","A版夜巴","9/20 Göreme → Antalya","todo"],
+ ["car","租車","Antalya → İzmir 甲租乙還","todo"],
+ ["kas","Kaş／Antalya","A版 Kaş 住兩晚；B版 Antalya、Kaş 各一晚","todo"],
+ ["kekova","Kekova 半日船","A版 9/22","todo"],
+ ["babadag","Babadağ 纜車","9/23 13:30–15:30","todo"],
+ ["pamukkale","Pamukkale","9/23 住宿","todo"],
+ ["izmir","İzmir","9/24 住宿","todo"],
+ ["istanbul","Istanbul","9/25–9/26 住宿","todo"],
+ ["insurance","保險","旅平＋不便險","todo"],
+ ["esim","網路","eSIM / 漫遊","todo"]
+];
+seed.bookingState = seed.bookingState || {"intl":"done"};
+
+let data = load(), currentDay=0, mapOverview, mapDay, layersOverview=[], layersDay=[];
+
+function upgradeItinerary(saved){
+ const d=saved||structuredClone(seed);if(d.itineraryVersion===seed.itineraryVersion)return d;
+ d.plans=structuredClone(seed.plans);d.bookings=structuredClone(seed.bookings);d.itineraryVersion=seed.itineraryVersion;
+ if(d.ledger?.entries)d.ledger.entries.forEach(e=>e.link='');
+ localStorage.setItem(STORAGE_KEY,JSON.stringify(d));return d
+}
+function load(){try{return upgradeItinerary(JSON.parse((localStorage.getItem(STORAGE_KEY)||localStorage.getItem("turkeyTripPlanner_perfect_v2")))||structuredClone(seed))}catch(e){return structuredClone(seed)}}
+function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(data))}
+function plan(){return data.plans[data.version]}
+function minsToText(m){if(!isFinite(m))return"—";m=Math.round(m);return `${Math.floor(m/60)}h ${m%60}m`}
+function timeToM(t){let [h,m]=String(t||"00:00").split(":").map(Number);return h*60+m}
+function mToTime(m){m=(m+1440)%1440;return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function hav(a,b){const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLon=(b.lng-a.lng)*Math.PI/180,la1=a.lat*Math.PI/180,la2=b.lat*Math.PI/180;const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+function autoTravel(prev,cur){
+ if(cur.travel!==null&&cur.travel!==""&&cur.travel!==undefined)return Number(cur.travel);
+ if(!prev||!prev.lat||!cur.lat)return 0;const d=hav(prev,cur);
+ const speed={walk:4.5,metro:24,scooter:38,car:58,bus:52,flight:650,transfer:42}[cur.mode]||35;
+ const rf={walk:1.12,metro:1.25,scooter:1.35,car:1.35,bus:1.3,flight:1,transfer:1.3}[cur.mode]||1.25;
+ const ov={metro:8,flight:50,bus:10,transfer:5}[cur.mode]||0;return Math.round(d*rf/speed*60+ov)
+}
+function modeName(m){return {walk:"步行",metro:"地鐵/大眾運輸",scooter:"機車",car:"租車",bus:"巴士/夜巴",flight:"飛機",transfer:"接駁/計程車"}[m]||m}
+function costs(stops){let tryv=0,eur=0;stops.forEach(s=>{tryv+=Number(s.costTry||0)+Number(s.ticketTry||0);eur+=Number(s.ticketEur||0)});return {tryv,eur,twd:tryv*data.fxTry+eur*data.fxEur}}
+function mapUrl(s){return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(s.mapQuery||s.name)}
+function gRouteUrl(stops){const pts=stops.filter(s=>s.lat&&s.lng);if(pts.length<2)return"#";const o=`${pts[0].lat},${pts[0].lng}`,d=`${pts.at(-1).lat},${pts.at(-1).lng}`,w=pts.slice(1,-1).map(p=>`${p.lat},${p.lng}`).join("|");return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(o)}&destination=${encodeURIComponent(d)}${w?`&waypoints=${encodeURIComponent(w)}`:""}`}
+function initMaps(){if(typeof L==="undefined"){mapOverview={invalidateSize(){},fallbackId:"overviewMap"};mapDay={invalidateSize(){},fallbackId:"dayMap"};return;}mapOverview=L.map("overviewMap").setView([38.5,31.5],6);mapDay=L.map("dayMap").setView([38.5,31.5],6);for(const m of [mapOverview,mapDay])L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}).addTo(m)}
+function clearLayers(map,layers){layers.forEach(l=>map.removeLayer(l));layers.length=0}
+function drawMap(map,layers,stops){if(map.fallbackId){fallbackMap(map.fallbackId,stops);return;}clearLayers(map,layers);const pts=stops.filter(s=>s.lat&&s.lng);if(!pts.length)return;pts.forEach(s=>layers.push(L.marker([s.lat,s.lng]).addTo(map).bindPopup(`<b>${esc(s.name)}</b><br>${esc(s.time)}`)));if(pts.length>1)layers.push(L.polyline(pts.map(s=>[s.lat,s.lng]),{weight:4,opacity:.75}).addTo(map));map.fitBounds(L.latLngBounds(pts.map(s=>[s.lat,s.lng])),{padding:[30,30],maxZoom:11})}
+
+function tripCost(){return plan().reduce((sum,d)=>sum+costs(d.stops).twd,0)}
+function renderHero(){
+ document.querySelectorAll(".vbtn").forEach(b=>b.classList.toggle("active",b.dataset.version===data.version));
+ document.getElementById("heroVersion").textContent=data.version+" 版";
+ document.getElementById("heroCost").textContent="NT$"+Math.round(tripCost()).toLocaleString();
+ const depart=new Date("2026-09-18T00:00:00+03:00"), now=new Date(), days=Math.ceil((depart-now)/86400000);
+ document.getElementById("countdown").textContent=days>0?days+" 天":days===0?"今天":"旅行中";
+ document.getElementById("branchRule").innerHTML=data.version==="A"
+ ? "<strong>A 版：</strong>9/19 或 9/20 熱氣球成功 → 9/20 夜巴前往 Antalya → 9/21 老城＋D400，當晚住 Kaş → 9/22 Kekova 半日船。"
+ : "<strong>B 版：</strong>前兩次熱氣球皆取消 → 9/21 最後備用③，之後由 ASR 飛 AYT、住 Antalya → 9/22 沿 D400 前往 Kaş。";
+}
+function renderHome(){
+ const p=plan();document.getElementById("nightsKpi").textContent=p.filter(d=>!/(夜巴|飛機)/.test(d.sleep)).length+" 晚";
+ document.getElementById("longMovesKpi").textContent=p.flatMap(d=>d.stops).filter(s=>(["bus","flight"].includes(s.mode)&&Number(s.stay||0)>=60)||(s.mode==="car"&&Number(s.travel||0)>=120)).length+" 段";
+ document.getElementById("costKpi").textContent="NT$"+Math.round(tripCost()).toLocaleString();
+ document.getElementById("routeStrip").innerHTML=p.map((d,i)=>`<div class="route-node"><div class="date">${d.date}</div><b>${esc(d.title)}</b><div class="sleep">住：${esc(d.sleep)}</div><button onclick="openDay(${i})">看當天</button></div>`).join("");
+ document.getElementById("timeline").innerHTML=p.map((d,i)=>`<div class="daycard"><div><div class="date">${d.date}</div><span class="pill">${esc(d.sleep)}</span></div><div><b>${esc(d.title)}</b><div class="route">${d.stops.map(s=>esc(s.name)).join(" → ")}</div></div><button class="btn" onclick="openDay(${i})">查看</button></div>`).join("");
+ drawMap(mapOverview,layersOverview,p.flatMap(d=>d.stops).filter(s=>s.lng<45));setTimeout(()=>mapOverview.invalidateSize(),50)
+}
+function dayMetrics(d){let tt=0;d.stops.forEach((s,i)=>tt+=autoTravel(d.stops[i-1],s));const first=d.stops[0]?.time||"08:00";const wake=mToTime(timeToM(first)-60);let end="—";if(d.stops.length){let s=d.stops.at(-1);end=mToTime(timeToM(s.time)+Number(s.stay||0))}return {tt,wake,first,end,c:costs(d.stops)}}
+function renderDay(){
+ const p=plan(),sel=document.getElementById("daySelect");sel.innerHTML=p.map((d,i)=>`<option value="${i}">${d.date}｜${esc(d.title)}</option>`).join("");sel.value=currentDay;
+ const d=p[currentDay],m=dayMetrics(d);document.getElementById("dayTitle").textContent=`${d.date}｜${d.title}`;document.getElementById("daySubtitle").textContent=`住宿：${d.sleep}　・　${d.tag||""}`;
+ document.getElementById("wakeTime").textContent=m.wake;document.getElementById("firstTime").textContent=m.first;document.getElementById("endTime").textContent=m.end;document.getElementById("travelTime").textContent=minsToText(m.tt);document.getElementById("dayCost").textContent="NT$"+Math.round(m.c.twd).toLocaleString();
+ document.getElementById("stopList").innerHTML=d.stops.map((s,i)=>{const tr=autoTravel(d.stops[i-1],s),fee=[];if(s.ticketTry)fee.push(`門票 ₺${s.ticketTry}`);if(s.ticketEur)fee.push(`門票 €${s.ticketEur}`);if(s.costTry)fee.push(`其他 ₺${s.costTry}`);return `<div class="stop"><div class="stop-grid"><div class="time">${esc(s.time)}</div><div><h4>${esc(s.name)}</h4><div class="meta">${modeName(s.mode)}${i?` ・ 車程約 ${minsToText(tr)}`:""} ・ 停留 ${minsToText(Number(s.stay||0))}${fee.length?" ・ "+fee.join(" / "):""}</div><div class="desc">${esc(s.desc||"")}</div></div><div class="actions"><a class="btn primary" target="_blank" href="${mapUrl(s)}">地圖</a>${s.official?`<a class="btn" target="_blank" href="${esc(s.official)}">官方</a>`:""}<button class="btn" onclick="editStop(${i})">編輯</button><button class="btn danger" onclick="deleteStop(${i})">刪除</button></div></div></div>`}).join("");
+ drawMap(mapDay,layersDay,d.stops);document.getElementById("gRouteBtn").href=gRouteUrl(d.stops);setTimeout(()=>mapDay.invalidateSize(),60)
+}
+function renderBudget(){
+ const p=plan();let ticket=0,food=0,trans=0,other=0;
+ p.forEach(d=>d.stops.forEach(s=>{ticket+=Number(s.ticketTry||0)*data.fxTry+Number(s.ticketEur||0)*data.fxEur;other+=Number(s.costTry||0)*data.fxTry;if(["car","bus","flight","transfer","metro"].includes(s.mode))trans+=0}));
+ food=other*.65;other*=.35;const cats=[["門票",ticket],["餐飲（估）",food],["其他（估）",other],["目前總計",ticket+food+other]],max=Math.max(...cats.map(x=>x[1]),1);
+ document.getElementById("budgetCats").innerHTML=cats.map(([n,v])=>`<div class="budget-card"><small class="muted">${n}</small><b style="font-size:22px;display:block;margin-top:4px">NT$${Math.round(v).toLocaleString()}</b><div class="budget-bar"><div style="width:${v/max*100}%"></div></div></div>`).join("")
+}
+function renderBookings(){
+ const arr=data.bookings||seed.bookings, done=arr.filter(([k])=>(data.bookingState||{})[k]==="done").length;document.getElementById("bookingProgress").style.width=(done/arr.length*100)+"%";
+ document.getElementById("bookingGrid").innerHTML=arr.map(([k,n,d])=>{const st=(data.bookingState||{})[k]||"todo";return `<div class="booking"><b>${esc(n)}</b><div class="muted">${esc(d)}</div><div class="actions" style="margin-top:8px"><button class="btn ${st==="done"?"primary":""}" onclick="toggleBooking('${k}')">${st==="done"?"✓ 已完成":"標記完成"}</button></div></div>`}).join("")
+}
+function toggleBooking(k){data.bookingState=data.bookingState||{};data.bookingState[k]=data.bookingState[k]==="done"?"todo":"done";save();renderBookings()}
+function renderChecklist(){
+ const fill=(id,arr,kind,progress)=>{document.getElementById(id).innerHTML=arr.map(([k,t])=>{const full=kind+":"+k,ck=!!data.checked[full];return `<label class="check"><input type="checkbox" ${ck?"checked":""} onchange="toggleCheck('${full}',this.checked)"><span>${esc(t)}</span></label>`}).join("");const done=arr.filter(([k])=>data.checked[kind+":"+k]).length;document.getElementById(progress).style.width=(done/arr.length*100)+"%"};
+ fill("notices",data.notices,"notice","noticeProgress");fill("packing",data.packing,"packing","packingProgress")
+}
+function toggleCheck(k,v){data.checked[k]=v;save();renderChecklist()}
+function renderAll(){renderHero();renderHome();renderDay();renderBudget();renderBookings();renderChecklist();document.getElementById("fxTry").value=data.fxTry;document.getElementById("fxEur").value=data.fxEur}
+
+function showTab(id){document.querySelectorAll(".section").forEach(s=>s.classList.toggle("active",s.id===id));document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.tab===id));if(id==="daily")setTimeout(()=>mapDay.invalidateSize(),80);if(id==="home")setTimeout(()=>mapOverview.invalidateSize(),80)}
+document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+document.querySelectorAll(".vbtn").forEach(b=>b.onclick=()=>{data.version=b.dataset.version;currentDay=0;save();renderAll()});
+function openDay(i){currentDay=i;showTab("daily");renderDay()}
+document.getElementById("daySelect").onchange=e=>{currentDay=Number(e.target.value);renderDay()};
+document.getElementById("prevDay").onclick=()=>{currentDay=Math.max(0,currentDay-1);renderDay()};
+document.getElementById("nextDay").onclick=()=>{currentDay=Math.min(plan().length-1,currentDay+1);renderDay()};
+
+const modal=document.getElementById("stopModal");
+function editStop(i){const s=plan()[currentDay].stops[i];document.getElementById("modalTitle").textContent="編輯行程";document.getElementById("editIndex").value=i;const keys=["Time","Name","Mode","Stay","Lat","Lng","Travel","CostTry","TicketTry","TicketEur","MapQuery","Official","Desc"];keys.forEach(k=>{const prop=k.charAt(0).toLowerCase()+k.slice(1);document.getElementById("f"+k).value=s[prop]??""});modal.classList.add("open")}
+function addStop(){document.getElementById("modalTitle").textContent="新增行程";document.getElementById("stopForm").reset();document.getElementById("editIndex").value="";document.getElementById("fTime").value="12:00";document.getElementById("fStay").value=60;modal.classList.add("open")}
+function closeModal(){modal.classList.remove("open")}
+document.getElementById("addStopBtn").onclick=addStop;document.getElementById("closeModal").onclick=closeModal;document.getElementById("cancelModal").onclick=closeModal;
+document.getElementById("stopForm").onsubmit=e=>{e.preventDefault();const v=id=>document.getElementById(id).value;const s={time:v("fTime"),name:v("fName"),mode:v("fMode"),stay:Number(v("fStay")||0),lat:Number(v("fLat")||0),lng:Number(v("fLng")||0),travel:v("fTravel")===""?null:Number(v("fTravel")),costTry:Number(v("fCostTry")||0),ticketTry:Number(v("fTicketTry")||0),ticketEur:Number(v("fTicketEur")||0),mapQuery:v("fMapQuery"),official:v("fOfficial"),desc:v("fDesc")};const idx=v("editIndex"),arr=plan()[currentDay].stops;if(idx==="")arr.push(s);else arr[Number(idx)]=s;arr.sort((a,b)=>timeToM(a.time)-timeToM(b.time));save();closeModal();renderAll()};
+function deleteStop(i){if(confirm("確定刪除這個行程？")){plan()[currentDay].stops.splice(i,1);save();renderAll()}}
+document.getElementById("fxTry").onchange=e=>{data.fxTry=Number(e.target.value);save();renderAll()};
+document.getElementById("fxEur").onchange=e=>{data.fxEur=Number(e.target.value);save();renderAll()};
+document.getElementById("exportBtn").onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="turkey-trip-perfect-backup.json";a.click();URL.revokeObjectURL(a.href)};
+document.getElementById("importFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{data=upgradeItinerary(JSON.parse(r.result));save();renderAll();alert("匯入完成")}catch{alert("JSON 格式錯誤")}};r.readAsText(f)};
+document.getElementById("resetBtn").onclick=()=>{if(confirm("會清除目前修改，恢復預設行程。確定？")){data=structuredClone(seed);save();renderAll()}};
+window.addEventListener("load",()=>{initMaps();renderAll()});
+</script>
+
+<dialog id="expenseDialog"></dialog>
+<script>
+const el=id=>document.getElementById(id);
+const nt=cents=>'NT$'+(cents/100).toLocaleString('zh-TW',{minimumFractionDigits:2,maximumFractionDigits:2});
+function ensureLedger(){
+ if(!data.ledger)data.ledger={people:[{id:'p1',name:'阿邦'},{id:'p2',name:'旅伴 2'},{id:'p3',name:'旅伴 3'},{id:'p4',name:'旅伴 4'}],entries:[]};
+ if(!data.fxUsd)data.fxUsd=32;
+}
+function applicableEntries(){ensureLedger();return data.ledger.entries.filter(e=>e.scope==='all'||e.scope===data.version)}
+function fx(c){return c==='TWD'?1:c==='TRY'?data.fxTry:c==='EUR'?data.fxEur:data.fxUsd}
+function entryCents(e){return Math.round(e.amount*fx(e.currency)*100)}
+function plannedItems(){return plan().flatMap((d,di)=>d.stops.map((s,si)=>({id:data.version+':'+di+':'+si,name:d.date+' '+s.name,cents:Math.round(costs([s]).twd*100)}))).filter(x=>x.cents>0)}
+function ledgerTotals(){const es=applicableEntries(),items=plannedItems();let remaining=0;items.forEach(p=>{const covered=es.filter(e=>e.link===p.id).reduce((n,e)=>n+entryCents(e),0);remaining+=Math.max(0,p.cents-covered)});return {remaining,entries:es.reduce((n,e)=>n+entryCents(e),0),paid:es.filter(e=>e.paid).reduce((n,e)=>n+entryCents(e),0)}}
+tripCost=function(){const t=ledgerTotals();return(t.remaining+t.entries)/100};
+const originalHome=renderHome;
+renderHome=function(){originalHome();const cities=data.version==='A'?['伊斯坦堡','卡帕多奇亞','安塔莉亞','卡什','費特希耶','棉堡','伊茲密爾','伊斯坦堡']:['伊斯坦堡','卡帕多奇亞','安塔莉亞','棉堡','伊茲密爾','伊斯坦堡'];el('routeStrip').innerHTML=cities.map(n=>'<span class="route-city"><i></i>'+n+'</span>').join('')};
+el('budget').innerHTML='<div class="card"><div class="ledger-head"><h2>預算與分帳</h2><button class="btn primary" onclick="editExpense()">＋ 新增支出</button></div><p class="muted">全團總預估＝行程尚未被支出取代的預算＋支出清單。已有行程預算的支出，請選取「對應行程」，避免重複加總。原版行程金額暫按全團計，可在每日行程修改。</p><div id="budgetCats" class="category-grid"></div><div class="notice" style="margin-top:13px">預估支出計入總預算；只有勾選「已付款」的支出參與旅伴結算。未填入的機票、住宿、熱氣球費用不會自行補估。</div><div id="ledgerList" class="ledger-list"></div></div><div class="grid" style="margin-top:16px"><div class="card"><h2>旅伴結算</h2><div class="muted">應付為已付款支出的分攤額；差額＝已付－應付。</div><div id="balances"></div></div><div class="card"><h2>誰該付誰</h2><div class="muted">以目前的付款差額提供轉帳建議（TWD）。</div><div id="settlements"></div></div></div><div class="card" style="margin-top:16px"><div class="ledger-head"><h2>同行旅伴</h2><button class="btn" onclick="editParty()">管理旅伴</button></div><div id="party" class="party-list"></div></div>';
+function sharesCents(e){
+ const total=entryCents(e),weights=e.members.map(id=>e.mode==='custom'?Number(e.shares[id]):1),sum=weights.reduce((a,b)=>a+b,0);
+ const shares=weights.map(w=>Math.floor(total*w/sum)),order=weights.map((w,i)=>({i,f:total*w/sum-shares[i]})).sort((a,b)=>b.f-a.f);
+ for(let k=0,left=total-shares.reduce((a,b)=>a+b,0);k<left;k++)shares[order[k%order.length].i]++;
+ return Object.fromEntries(e.members.map((id,i)=>[id,shares[i]]));
+}
+function calculateBalances(){
+ ensureLedger();const b=Object.fromEntries(data.ledger.people.map(p=>[p.id,{name:p.name,paid:0,owed:0}]));
+ applicableEntries().filter(e=>e.paid).forEach(e=>{b[e.payer].paid+=entryCents(e);Object.entries(sharesCents(e)).forEach(([id,v])=>b[id].owed+=v)});
+ return b;
+}
+renderBudget=function(){
+ ensureLedger();const t=ledgerTotals(),total=t.remaining+t.entries;
+ el('budgetCats').innerHTML=[['全團總預估',total],['已付款',t.paid],['預算尚未付款',total-t.paid]].map(([n,v])=>'<div class="budget-card"><small class="muted">'+n+'</small><b style="font-size:23px;display:block;margin-top:5px">'+nt(v)+'</b></div>').join('');
+ const entries=applicableEntries(),person=id=>data.ledger.people.find(p=>p.id===id)?.name||'未知';
+ el('ledgerList').innerHTML=entries.length?entries.map(e=>'<div class="ledger-row"><div><b>'+esc(e.name)+'</b><small>'+esc(e.category)+' · '+(e.scope==='all'?'A/B 共用':e.scope+' 版')+' · '+(e.mode==='custom'?'自訂':'平均')+'分給 '+e.members.length+' 人'+(e.link?' · 已對應行程':'')+'</small></div><div><strong>'+esc(e.currency)+' '+Number(e.amount).toLocaleString()+'</strong><small>'+nt(entryCents(e))+'</small></div><div><span class="pill">'+(e.paid?'已付款':'預估')+'</span><small>'+esc(person(e.payer))+'</small></div><button class="btn" onclick="editExpense(\''+e.id+'\')">編輯</button></div>').join(''):'<div class="ledger-empty">先記下一筆機票、住宿或餐費。<br>首頁已包含原版行程中填寫的預算。</div>';
+ const b=calculateBalances();
+ el('balances').innerHTML='<table class="balance-table"><thead><tr><th>旅伴</th><th>應付</th><th>已付</th><th>差額</th></tr></thead><tbody>'+Object.values(b).map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+nt(x.owed)+'</td><td>'+nt(x.paid)+'</td><td class="'+(x.paid>=x.owed?'positive':'negative')+'">'+nt(x.paid-x.owed)+'</td></tr>').join('')+'</tbody></table>';
+ let debt=Object.values(b).map(x=>({name:x.name,n:x.owed-x.paid})).filter(x=>x.n>0),credit=Object.values(b).map(x=>({name:x.name,n:x.paid-x.owed})).filter(x=>x.n>0),lines=[];
+ debt.forEach(d=>{while(d.n>0&&credit.length){const c=credit[0],v=Math.min(d.n,c.n);lines.push('<p>'+esc(d.name)+' → '+esc(c.name)+'<b style="float:right">'+nt(v)+'</b></p>');d.n-=v;c.n-=v;if(c.n===0)credit.shift()}});
+ el('settlements').innerHTML=lines.join('')||'<p class="muted">目前沒有需要轉帳的差額。</p>';
+ el('party').innerHTML=data.ledger.people.map(p=>'<span class="party-item">'+esc(p.name)+'</span>').join('');
+};
+function closeExpense(){el('expenseDialog').close()}
+function showExpense(html){el('expenseDialog').innerHTML=html;el('expenseDialog').showModal()}
+function editExpense(id){
+ ensureLedger();const old=data.ledger.entries.find(e=>e.id===id),e=old||{name:'',amount:'',currency:'TWD',category:'其他',scope:data.version,payer:data.ledger.people[0].id,members:data.ledger.people.map(p=>p.id),mode:'equal',shares:{},paid:false,link:''};
+ showExpense('<h2>'+(old?'編輯支出':'新增支出')+'</h2><form id="ledgerForm"><div class="formgrid"><label class="wide">支出名稱<input name="name" required maxlength="100" value="'+esc(e.name)+'"></label><label>金額<input name="amount" type="number" min=".01" step=".01" required value="'+e.amount+'"></label><label>幣別<select name="currency">'+['TWD','TRY','EUR','USD'].map(c=>'<option '+(c===e.currency?'selected':'')+'>'+c+'</option>').join('')+'</select></label><label>分類<select name="category">'+['機票','住宿','交通','活動','門票','餐飲','購物','其他'].map(c=>'<option '+(c===e.category?'selected':'')+'>'+c+'</option>').join('')+'</select></label><label>適用版本<select name="scope">'+[['A','A 版'],['B','B 版'],['all','A/B 共用']].map(([v,n])=>'<option value="'+v+'" '+(v===e.scope?'selected':'')+'>'+n+'</option>').join('')+'</select></label><label>付款人<select name="payer">'+data.ledger.people.map(p=>'<option value="'+p.id+'" '+(e.payer===p.id?'selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select></label><label>分配方式<select name="mode" id="splitMode"><option value="equal">平均分配</option><option value="custom">自訂金額（原幣）</option></select></label><label class="wide">對應行程預算（有選取時取代同筆估算）<select name="link"><option value="">額外支出／不對應</option>'+plannedItems().map(p=>'<option value="'+p.id+'" '+(e.link===p.id?'selected':'')+'>'+esc(p.name)+' · '+nt(p.cents)+'</option>').join('')+'</select></label><div class="wide"><div class="muted" style="margin-bottom:8px">參與分帳的人（自訂分配的加總需等於支出金額）</div>'+data.ledger.people.map(p=>'<label class="split-check"><input name="members" type="checkbox" value="'+p.id+'" '+(e.members.includes(p.id)?'checked':'')+'><span>'+esc(p.name)+'</span><input aria-label="'+esc(p.name)+' 自訂金額" class="share-input" name="share_'+p.id+'" type="number" step=".01" min="0" value="'+(e.shares?.[p.id]||0)+'"></label>').join('')+'</div><label class="split-check wide"><input type="checkbox" name="paid" '+(e.paid?'checked':'')+'><span>已經付款（加入結算）</span></label></div><p id="ledgerError" class="alert-text" role="alert"></p><div class="dialog-actions">'+(old?'<button class="btn danger" type="button" onclick="deleteExpense(\''+id+'\')">刪除此筆</button>':'')+'<button class="btn" type="button" onclick="closeExpense()">取消</button><button class="btn primary">儲存支出</button></div></form>');
+ el('splitMode').value=e.mode;el('splitMode').onchange=()=>document.querySelectorAll('.share-input').forEach(x=>x.hidden=el('splitMode').value!=='custom');el('splitMode').onchange();
+ el('ledgerForm').onsubmit=ev=>{
+ ev.preventDefault();const f=new FormData(ev.target),members=f.getAll('members'),amount=Number(f.get('amount')),mode=f.get('mode'),shares=Object.fromEntries(members.map(p=>[p,Number(f.get('share_'+p))])),link=f.get('link'),scope=f.get('scope');
+ if(!members.length){el('ledgerError').textContent='請選擇至少一位分帳旅伴。';return}
+ if(mode==='custom'&&Math.abs(Object.values(shares).reduce((a,b)=>a+Math.round(b*100),0)-Math.round(amount*100))>0){el('ledgerError').textContent='自訂分配加總必須等於 '+amount+' '+f.get('currency')+'。';return}
+ if(link&&scope!==data.version){el('ledgerError').textContent='對應行程僅適用目前 '+data.version+' 版；請調整適用版本或取消對應。';return}
+ const item={id:old?.id||'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:f.get('name').trim(),amount,currency:f.get('currency'),category:f.get('category'),scope,payer:f.get('payer'),members,mode,shares,link,paid:f.has('paid')};
+ if(old)data.ledger.entries[data.ledger.entries.indexOf(old)]=item;else data.ledger.entries.push(item);save();closeExpense();renderAll();
+ };
+}
+function deleteExpense(id){showExpense('<h2>刪除這筆支出？</h2><p class="muted">首頁預算與分帳會重新計算。</p><div class="dialog-actions"><button class="btn" onclick="editExpense(\''+id+'\')">保留</button><button class="btn danger" id="confirmExpenseDelete">確定刪除</button></div>');el('confirmExpenseDelete').onclick=()=>{data.ledger.entries=data.ledger.entries.filter(e=>e.id!==id);save();closeExpense();renderAll()}}
+function editParty(){
+ ensureLedger();showExpense('<h2>同行旅伴</h2><form id="partyForm"><div id="partyFields">'+data.ledger.people.map(p=>'<label style="margin-bottom:10px">旅伴姓名<input name="'+p.id+'" value="'+esc(p.name)+'" required maxlength="40"></label>').join('')+'</div><button type="button" class="btn" onclick="addPartyField()">＋ 增加旅伴</button><p class="muted">已有支出的人保留身分，修改姓名也不會弄丟帳目。</p><div class="dialog-actions"><button type="button" class="btn" onclick="closeExpense()">取消</button><button class="btn primary">儲存旅伴</button></div></form>');
+ el('partyForm').onsubmit=e=>{e.preventDefault();data.ledger.people=Array.from(new FormData(e.target)).map(([id,name])=>({id,name:name.trim()}));save();closeExpense();renderAll()};
+}
+function addPartyField(){const label=document.createElement('label');label.style.marginBottom='10px';label.textContent='旅伴姓名';const input=document.createElement('input');input.name='p'+Date.now().toString(36);input.required=true;input.maxLength=40;label.append(input);el('partyFields').append(label);input.focus()}
+const dollarLabel=document.createElement('label');dollarLabel.innerHTML='USD → TWD<input id="fxUsd" type="number" min=".001" step=".01">';el('fxEur').parentElement.after(dollarLabel);
+el('fxUsd').onchange=e=>{if(Number(e.target.value)>0){data.fxUsd=Number(e.target.value);save();renderAll()}};
+const oldRenderAll=renderAll;renderAll=function(){ensureLedger();oldRenderAll();el('fxUsd').value=data.fxUsd};
+el('fxTry').min='.001';el('fxEur').min='.001';
+['fxTry','fxEur'].forEach(id=>el(id).onchange=e=>{if(Number(e.target.value)>0){data[id]=Number(e.target.value);save();renderAll()}else e.target.value=data[id]});
+el('settings').querySelector('.notice').textContent='匯率沿用第一版的規劃值，非即時報價；調整後會同步更新首頁、預算與分帳。';
+function fallbackMap(id,stops){
+ const pts=stops.filter(s=>Number.isFinite(s.lat)&&s.lat&&Number.isFinite(s.lng)&&s.lng),container=el(id);
+ if(!pts.length){container.innerHTML='<p class="muted">加入座標即可顯示路線。</p>';return}
+ const minX=Math.min(...pts.map(s=>s.lng)),maxX=Math.max(...pts.map(s=>s.lng)),minY=Math.min(...pts.map(s=>s.lat)),maxY=Math.max(...pts.map(s=>s.lat));
+ const xy=s=>[35+(s.lng-minX)/(maxX-minX||1)*410,210-(s.lat-minY)/(maxY-minY||1)*170];
+ container.innerHTML='<svg viewBox="0 0 480 270" class="fallback-map" role="img" aria-label="離線路線示意"><polyline fill="none" stroke="#318985" stroke-width="2" points="'+pts.map(s=>xy(s).join(',')).join(' ')+'"/>'+pts.map((s,i)=>{const [x,y]=xy(s);return'<circle cx="'+x+'" cy="'+y+'" r="4" fill="#c76c43"><title>'+esc(s.name)+'</title></circle>'+(pts.length<12?'<text x="'+(x+5)+'" y="'+(y-5)+'">'+(i+1)+'</text>':'')}).join('')+'<text x="20" y="252">離線路線示意 · 連網後重新開啟可載入街道地圖</text></svg>';
+}
+const originalDelete=deleteStop;
+deleteStop=function(i){
+ const prefix=data.version+':'+currentDay+':',links=data.ledger?.entries.filter(e=>e.link===prefix+i)||[];
+ if(links.length){alert('此行程已有對應支出，請先在分帳中取消對應，再刪除行程。');return}
+ const before=plan()[currentDay].stops.length;originalDelete(i);
+ if(plan()[currentDay].stops.length<before){data.ledger.entries.forEach(e=>{if(e.link?.startsWith(prefix)){let n=+e.link.split(':')[2];if(n>i)e.link=prefix+(n-1)}});save();renderAll()}
+};
+// Keep linked expense references stable when editing a stop changes its sort position.
+const originalSubmit=el('stopForm').onsubmit;
+el('stopForm').onsubmit=e=>{
+ const arr=plan()[currentDay].stops,old=[...arr],idx=el('editIndex').value,prefix=data.version+':'+currentDay+':';
+ const refs=(data.ledger?.entries||[]).filter(x=>x.link?.startsWith(prefix)).map(x=>({entry:x,stop:old[+x.link.split(':')[2]],index:+x.link.split(':')[2]}));
+ const newTime=el('fTime').value,newName=el('fName').value;originalSubmit(e);
+ refs.forEach(r=>{let n=arr.indexOf(r.stop);if(n<0&&idx!==''&&r.index===+idx)n=arr.findIndex(s=>s.time===newTime&&s.name===newName);if(n>=0)r.entry.link=prefix+n});
+ save();renderAll();
+};
+el('importFile').onchange=e=>{
+ const file=e.target.files[0];if(!file)return;const reader=new FileReader();
+ reader.onload=()=>{try{
+ const candidate=JSON.parse(reader.result);
+ if(!['A','B'].includes(candidate.version)||!candidate.plans||!['A','B'].every(v=>Array.isArray(candidate.plans[v])&&candidate.plans[v].length&&candidate.plans[v].every(d=>Array.isArray(d.stops)&&d.stops.every(s=>typeof s.name==='string'&&typeof s.time==='string')))||!(candidate.fxTry>0)||!(candidate.fxEur>0))throw Error('不是 PRO 行程備份格式');
+ if(candidate.ledger){const ids=candidate.ledger.people.map(p=>p.id);if(!ids.length||new Set(ids).size!==ids.length||!candidate.ledger.entries.every(x=>x.id&&x.amount>0&&['TWD','TRY','EUR','USD'].includes(x.currency)&&ids.includes(x.payer)&&x.members?.length&&new Set(x.members).size===x.members.length&&x.members.every(id=>ids.includes(id))&&['all','A','B'].includes(x.scope)&&['equal','custom'].includes(x.mode)&&(x.mode!=='custom'||Math.round(Object.values(x.shares||{}).reduce((a,b)=>a+b,0)*100)===Math.round(x.amount*100))))throw Error('分帳資料不完整')}
+ candidate.checked=candidate.checked||{};candidate.notices=candidate.notices||structuredClone(seed.notices);candidate.packing=candidate.packing||structuredClone(seed.packing);
+ if(!confirm('以匯入備份取代目前資料？建議先匯出目前版本。'))return;
+ data=candidate;currentDay=0;ensureLedger();save();renderAll();alert('匯入完成');
+ }catch(err){alert('匯入失敗：'+err.message+'。目前資料保留。')}finally{e.target.value=''}};
+ reader.readAsText(file);
+};
+el('exportBtn').onclick=()=>{ensureLedger();const a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.href=u;a.download='火雞熱氣球大冒險_PRO_備份.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
+</script>
+<style>
+.hero{background:
+ linear-gradient(90deg,rgba(10,43,56,.94) 0%,rgba(13,59,70,.82) 42%,rgba(13,59,70,.08) 76%),
+ url("cappadocia-balloon-hero.png") center/cover no-repeat;min-height:430px}
+.hero-grid{display:block;min-height:355px}.hero-grid>div:first-child{max-width:680px}.hero-panel{display:none}.hero-cta .btn:not(:first-child){display:none}.hero h1{font-size:clamp(44px,5.8vw,76px)}.hero p{font-size:15px;max-width:550px}.hero:before{display:none}
+#home>.card.route-overview{margin-bottom:16px;background:#fffaf0}.route-strip{display:grid;grid-template-columns:repeat(10,minmax(75px,1fr));gap:0;overflow-x:auto;flex-wrap:nowrap}.route-city{display:block;position:relative;padding:9px 9px 12px;border-bottom:2px solid #e9dcc3;line-height:1.35}.route-city i{display:block;margin:0 0 8px}.route-city b{display:block;font-size:15px}.route-city small{font-size:11px;color:var(--muted)}.route-city:not(:last-child):after{content:"";position:absolute;right:-4px;bottom:-5px;width:8px;height:8px;border:2px solid #fff;background:#d3a345;border-radius:50%;z-index:2}.versionbar.overview-version{margin:0 0 16px;padding:10px;background:#e6eee9;border-radius:12px}.versionbar.overview-version .vbtn{color:#38636a;border-color:#b9d2cb}.versionbar.overview-version .vbtn.active{background:#176d7b;color:white;border-color:#176d7b}.today-card{display:none}.sun-metric{background:linear-gradient(135deg,#f5e2b0,#f3c77c)!important;color:#5f4926}.stop-grid{grid-template-columns:72px 82px minmax(0,1fr) 94px}.stop-thumb{width:82px;height:72px;border-radius:12px;overflow:hidden;display:grid;place-items:center;position:relative;background:linear-gradient(145deg,#d9b17c,#b55d3c);color:#fff;font-size:27px}.stop-thumb:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 75% 20%,#ffd86f 0 12%,transparent 13%),linear-gradient(150deg,transparent 52%,#ffffff25 53%)}.stop-thumb span{position:relative;filter:drop-shadow(0 2px 2px #0003)}.stop-main{min-width:0}.stop-main .official-row{padding-top:9px;margin-top:8px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center}.stop-main .official-row a{color:#176d7b;font-size:12px;font-weight:700}.stop-actions{display:grid;gap:6px;position:sticky;top:75px}.stop-actions .btn{width:100%;text-align:center}.map-actions-fixed{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}.map-actions-fixed>*{width:100%;text-align:center}.sun-source{font-size:11px;color:var(--muted);margin:8px 0 0}.sun-source a{color:#176d7b;text-decoration:underline}
+@media(max-width:900px){.route-strip{grid-template-columns:repeat(10,100px)}.stop-grid{grid-template-columns:62px 70px minmax(0,1fr) 82px}.stop-thumb{width:70px;height:66px}}
+@media(max-width:650px){.hero{min-height:430px;background-position:62% center}.hero-grid{min-height:380px;display:flex;align-items:flex-end}.hero h1{font-size:46px}.hero p{font-size:13px}.route-strip{grid-template-columns:repeat(10,92px)}.route-city b{font-size:13px}.stop-grid{grid-template-columns:52px 62px minmax(0,1fr)}.stop-thumb{width:62px;height:60px}.stop-actions{grid-column:2/4;grid-template-columns:repeat(3,1fr);position:static}.stop-main .official-row{display:block}.metrics{grid-template-columns:repeat(2,1fr)}}
+</style>
+<script>
+const solarByVersion={
+ A:[['06:45','19:09'],['06:26','18:42'],['06:27','18:41'],['06:44','18:55'],['06:45','18:53'],['06:50','19:00'],['06:52','18:58'],['06:57','19:03'],['06:54','18:56'],['06:55','18:54']],
+ B:[['06:45','19:09'],['06:26','18:42'],['06:27','18:41'],['06:28','18:39'],['06:45','18:53'],['06:50','19:00'],['06:52','18:58'],['06:57','19:03'],['06:54','18:56'],['06:55','18:54']]
+};
+function dayCity(d,i){const A=['台南／Göreme','Göreme','Göreme','Antalya／Kaş','Kaş','Ölüdeniz／Pamukkale','Pamukkale／İzmir','İzmir／İstanbul','İstanbul','İstanbul／返台'];const B=['台南／Göreme','Göreme','Göreme','Göreme／Antalya','Antalya／Kaş','Ölüdeniz／Pamukkale','Pamukkale／İzmir','İzmir／İstanbul','İstanbul','İstanbul／返台'];return(data.version==='A'?A:B)[i]||d.sleep}
+function stopIcon(s){const n=(s.name+' '+s.mode).toLowerCase();if(n.includes('balloon')||n.includes('熱氣球'))return'🎈';if(n.includes('airport')||n.includes('飛')||s.mode==='flight')return'✈️';if(n.includes('beach')||n.includes('harbor')||n.includes('bosphorus')||n.includes('海'))return'🌊';if(n.includes('museum')||n.includes('palace')||n.includes('ancient')||n.includes('hierapolis')||n.includes('ephesus')||n.includes('地下城'))return'🏛️';if(n.includes('valley')||n.includes('sunset')||n.includes('日落'))return'🌄';if(n.includes('飯店')||n.includes('入住'))return'🏨';if(n.includes('早餐')||n.includes('午餐')||n.includes('晚餐')||n.includes('咖啡'))return'🍽️';if(n.includes('bazaar')||n.includes('shopping')||n.includes('逛街'))return'🧿';if(s.mode==='car'||s.mode==='scooter')return'🚙';if(s.mode==='bus'||s.mode==='transfer')return'🚌';return'📍'}
+const coverPanel=document.querySelector('.hero-panel');
+const navEl=document.querySelector('.nav'),routeCard=el('routeStrip').closest('.card'),branchEl=el('branchRule'),kpisEl=branchEl.nextElementSibling,versionBar=coverPanel.querySelector('.versionbar');
+routeCard.classList.add('route-overview');el('home').prepend(routeCard);routeCard.querySelector('h2').textContent='行程總覽';versionBar.classList.add('overview-version');routeCard.after(versionBar);versionBar.after(branchEl);branchEl.after(kpisEl);
+const oldHomeOrderRender=renderHome;
+renderHome=function(){oldHomeOrderRender();el('routeStrip').innerHTML=plan().map((d,i)=>'<span class="route-city"><i></i><small>'+esc(d.date)+'</small><b>'+esc(dayCity(d,i))+'</b></span>').join('')};
+const oldDayMetrics=renderDay;
+renderDay=function(){
+ oldDayMetrics();const d=plan()[currentDay],sun=solarByVersion[data.version][currentDay]||['—','—'];
+ const metrics=el('dayCost').closest('.metrics');
+ let sunrise=el('sunriseMetric'),sunset=el('sunsetMetric');
+ if(!sunrise){sunrise=document.createElement('div');sunrise.id='sunriseMetric';sunrise.className='metric sun-metric';sunset=document.createElement('div');sunset.id='sunsetMetric';sunset.className='metric sun-metric';metrics.prepend(sunset);metrics.prepend(sunrise);const note=document.createElement('p');note.className='sun-source';note.innerHTML='2026 年當地時間，依每日主要城市核對；山谷、建築與天候會影響實際可見時間。 <a href="https://www.timeanddate.com/sun/turkey/antalya?month=9&year=2026" target="_blank" rel="noopener">日照資料 ↗</a>';metrics.after(note)}
+ sunrise.innerHTML='<small>日出</small><strong>☀ '+sun[0]+'</strong>';sunset.innerHTML='<small>日落</small><strong>☾ '+sun[1]+'</strong>';
+ el('stopList').innerHTML=d.stops.map((s,i)=>{const tr=autoTravel(d.stops[i-1],s),fee=[];if(s.ticketTry)fee.push('門票 ₺'+s.ticketTry);if(s.ticketEur)fee.push('門票 €'+s.ticketEur);if(s.costTry)fee.push('其他 ₺'+s.costTry);return'<div class="stop"><div class="stop-grid"><div class="time">'+esc(s.time)+'</div><div class="stop-thumb" aria-hidden="true"><span>'+stopIcon(s)+'</span></div><div class="stop-main"><h4>'+esc(s.name)+'</h4><div class="meta">'+modeName(s.mode)+(i?' ・ 車程約 '+minsToText(tr):'')+' ・ 停留 '+minsToText(Number(s.stay||0))+(fee.length?' ・ '+fee.join(' / '):'')+'</div><div class="desc">'+esc(s.desc||'')+'</div><div class="official-row"><a target="_blank" rel="noopener" href="'+mapUrl(s)+'">Google Maps ↗</a>'+(s.official?'<a target="_blank" rel="noopener" href="'+esc(s.official)+'">官方／參考網站 ↗</a>':'')+'</div></div><div class="stop-actions"><button class="btn" onclick="editStop('+i+')">編輯</button><button class="btn danger" onclick="deleteStop('+i+')">刪除</button></div></div></div>'}).join('');
+ const routeActions=el('gRouteBtn').parentElement;routeActions.classList.add('map-actions-fixed')
+};
+</script>
+<style>
+.route-strip{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;grid-auto-flow:row!important;grid-auto-columns:auto!important;gap:10px!important;overflow:visible!important}
+.route-city{appearance:none!important;text-align:left!important;display:grid!important;grid-template-columns:45px minmax(0,1fr)!important;align-items:center!important;min-height:78px!important;padding:12px!important;border:1px solid #e5dac6!important;border-radius:12px!important;background:#fff!important;color:var(--ink)!important;position:relative!important;line-height:1.3!important;white-space:normal!important;cursor:pointer}
+.route-city:hover{border-color:#bd7757!important;transform:translateY(-1px)}.route-city i{position:absolute!important;left:0!important;top:11px!important;bottom:11px!important;width:4px!important;height:auto!important;border-radius:0 5px 5px 0!important;background:#318b86!important;margin:0!important}.route-city small{font-size:12px!important;color:#b45c3b!important;font-weight:800}.route-city b{font-size:14px!important}.route-city .route-day{font-size:9px;color:var(--muted);display:block;margin-top:3px}.route-city:not(:last-child):after{display:none!important}.route-city.is-today{background:linear-gradient(135deg,#176d7b,#25898c)!important;color:#fff!important;border-color:#176d7b!important;box-shadow:0 8px 20px #176d7b28}.route-city.is-today i{background:#f3c96c!important}.route-city.is-today small,.route-city.is-today .route-day{color:#fae3ae!important}.today-badge{position:absolute;right:7px;top:6px;background:#f4c96e;color:#5e4723;border-radius:999px;padding:2px 6px;font-size:9px;font-weight:800}
+.stop-thumb{display:block!important;background-image:url("turkey-photo-atlas.png")!important;background-size:400% 300%!important;background-repeat:no-repeat!important;box-shadow:inset 0 0 0 1px #fff8!important}.stop-thumb:before{display:none!important}.photo-1{background-position:0 0!important}.photo-2{background-position:33.333% 0!important}.photo-3{background-position:66.666% 0!important}.photo-4{background-position:100% 0!important}.photo-5{background-position:0 50%!important}.photo-6{background-position:33.333% 50%!important}.photo-7{background-position:66.666% 50%!important}.photo-8{background-position:100% 50%!important}.photo-9{background-position:0 100%!important}.photo-10{background-position:33.333% 100%!important}.photo-11{background-position:66.666% 100%!important}.photo-12{background-position:100% 100%!important}
+@media(max-width:900px){.route-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:650px){.route-strip{grid-template-columns:1fr 1fr!important;gap:7px!important}.route-city{min-height:68px!important;grid-template-columns:38px 1fr!important;padding:9px!important}.route-city b{font-size:12px!important}}
+</style>
+<script>
+function demoOrTodayIndex(){
+ const now=new Date(),key=(now.getMonth()+1)+'/'+now.getDate(),i=plan().findIndex(d=>d.date===key);
+ return i>=0?i:2
+}
+function stopPhoto(s){
+ const n=(s.name+' '+(s.desc||'')+' '+s.mode).toLowerCase();
+ if(n.includes('airport')||n.includes('飛往')||n.includes('飛機'))return 1;
+ if(n.includes('balloon')||n.includes('熱氣球'))return 2;
+ if(n.includes('飯店')||n.includes('入住')||n.includes('hotel'))return 3;
+ if(n.includes('kaymak')||n.includes('underground')||n.includes('地下城'))return 5;
+ if(n.includes('早餐')||n.includes('午餐')||n.includes('晚餐')||n.includes('咖啡')||n.includes('甜點'))return 6;
+ if(n.includes('antalya')||n.includes('kalei')||n.includes('hadrian'))return 7;
+ if(n.includes('d400')||n.includes('beach')||n.includes('phASELIS'.toLowerCase())||n.includes('ölüdeniz'))return 8;
+ if(n.includes('kaş')||n.includes('kas')||n.includes('kalkan')||n.includes('harbor'))return 9;
+ if(n.includes('pamukkale')||n.includes('hierapolis')||n.includes('棉堡'))return 10;
+ if(n.includes('ephesus')||n.includes('ancient city'))return 11;
+ if(n.includes('istanbul')||n.includes('bosphorus')||n.includes('topkap')||n.includes('mosque')||n.includes('bazaar')||n.includes('galata'))return 12;
+ return 4
+}
+const alignedHomeRender=renderHome;
+renderHome=function(){
+ alignedHomeRender();const highlight=demoOrTodayIndex();
+ el('routeStrip').innerHTML=plan().map((d,i)=>'<button type="button" class="route-city '+(i===highlight?'is-today':'')+'" onclick="openDay('+i+')" aria-label="'+esc(d.date+' '+dayCity(d,i)+'，查看當天行程')+'"><i></i><span><small>'+esc(d.date)+'</small><span class="route-day">DAY '+String(i+1).padStart(2,'0')+'</span></span><b>'+esc(dayCity(d,i))+'</b>'+(i===highlight?'<em class="today-badge">'+(new Date().getMonth()===8&&new Date().getDate()>=18&&new Date().getDate()<=27?'今天':'今日示範')+'</em>':'')+'</button>').join('')
+};
+const photoDayRender=renderDay;
+renderDay=function(){
+ photoDayRender();el('stopList').querySelectorAll('.stop-thumb').forEach((thumb,i)=>{thumb.className='stop-thumb photo-'+stopPhoto(plan()[currentDay].stops[i]);thumb.innerHTML='';thumb.setAttribute('aria-label',plan()[currentDay].stops[i].name+' 特點照片');thumb.removeAttribute('aria-hidden')})
+};
+</script>
+<style>
+.cost-dashboard{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr) auto;gap:9px;margin-top:2px}.cost-stat{padding:13px;border-radius:15px;background:#edf2eb;border:1px solid #dfe7dc}.cost-stat:nth-child(2){background:#f6e5d2}.cost-stat:nth-child(3){background:#e1edef}.cost-stat small{display:block;color:var(--muted);font-size:11px}.cost-stat strong{font-size:18px;display:block;margin-top:2px}.cost-toggle{align-self:stretch;min-width:116px;background:#fff8e9!important}.cost-progress{grid-column:1/-1;height:7px;background:#eee6d7;border-radius:99px;overflow:hidden}.cost-progress>i{display:block;height:100%;background:linear-gradient(90deg,#c96b45,#d6aa49,#2d8986);border-radius:99px;transition:width .2s}.stop-costline{margin-top:9px;padding:8px 10px;border-radius:9px;background:#eef4ef;color:#315e5f;font-size:11px;display:flex;gap:8px;flex-wrap:wrap}.stop-costline b{color:#b45d3d}.cost-footnote{grid-column:1/-1;font-size:11px;color:var(--muted);margin:0}
+@media(max-width:650px){.cost-dashboard{grid-template-columns:1fr 1fr}.cost-stat:nth-child(3){grid-column:1/-1}.cost-toggle{min-height:45px}.stop-costline{display:grid;grid-template-columns:1fr 1fr}.stop-costline span:last-child{grid-column:1/-1}}
+</style>
+<script>
+function linkedEntriesFor(di,si){ensureLedger();const key=data.version+':'+di+':'+si;return applicableEntries().filter(e=>e.link===key)}
+function stopEffectiveCents(di,si){
+ const stop=plan()[di]?.stops[si];if(!stop)return 0;
+ const estimated=Math.round(costs([stop]).twd*100),linked=linkedEntriesFor(di,si).reduce((n,e)=>n+entryCents(e),0);
+ return Math.max(estimated,linked)
+}
+function dayEffectiveCents(di){return(plan()[di]?.stops||[]).reduce((n,s,si)=>n+stopEffectiveCents(di,si),0)}
+function dayPaidCents(di){return(plan()[di]?.stops||[]).reduce((n,s,si)=>n+linkedEntriesFor(di,si).filter(e=>e.paid).reduce((a,e)=>a+entryCents(e),0),0)}
+function tripThroughCents(di){let n=0;for(let i=0;i<=di;i++)n+=dayEffectiveCents(i);return n}
+function displayCost(cents){return nt(Math.round(cents/(data.costView==='person'?Math.max(data.ledger.people.length,1):1)))}
+function toggleCostView(){data.costView=data.costView==='person'?'group':'person';save();renderDay()}
+const cumulativeRenderDay=renderDay;
+renderDay=function(){
+ cumulativeRenderDay();ensureLedger();data.costView=data.costView||'person';
+ const metrics=el('dayCost').closest('.metrics'),old=el('costDashboard');if(old)old.remove();
+ const today=dayEffectiveCents(currentDay),paid=dayPaidCents(currentDay),through=tripThroughCents(currentDay),whole=ledgerTotals(),wholeTotal=whole.remaining+whole.entries,rate=wholeTotal?Math.min(100,through/wholeTotal*100):0;
+ const dash=document.createElement('div');dash.id='costDashboard';dash.className='cost-dashboard';dash.innerHTML='<div class="cost-stat"><small>當日預估</small><strong>'+displayCost(today)+'</strong></div><div class="cost-stat"><small>當日已付</small><strong>'+displayCost(paid)+'</strong></div><div class="cost-stat"><small>旅程累積至今天</small><strong>'+displayCost(through)+'</strong></div><button class="btn cost-toggle" onclick="toggleCostView()">'+(data.costView==='person'?'每人花費 ▾':'全團花費 ▾')+'</button><div class="cost-progress" title="累積占全團總預估 '+rate.toFixed(1)+'%"><i style="width:'+rate+'%"></i></div><p class="cost-footnote">進度為已排入日期的累積／全團總預估；未對應到行程的分帳支出仍計入總預算，但不放入某一天。</p>';
+ metrics.append(dash);
+ let dayRun=0,before=0;for(let d=0;d<currentDay;d++)before+=dayEffectiveCents(d);
+ el('stopList').querySelectorAll('.stop').forEach((card,si)=>{const here=stopEffectiveCents(currentDay,si);dayRun+=here;const line=document.createElement('div');line.className='stop-costline';line.innerHTML='<span>本站 <b>'+displayCost(here)+'</b></span><span>今日累積 <b>'+displayCost(dayRun)+'</b></span><span>全程累積 <b>'+displayCost(before+dayRun)+'</b></span>';card.querySelector('.stop-main').append(line)})
+};
+</script>
+<style>
+.overview-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.overview-head h2{margin:0}.overview-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.overview-tools .versionbar{margin:0!important;padding:4px!important}.today-btn{background:#c66b45!important;color:#fff!important;border-color:#c66b45!important}.traveler-select{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid #ddd4c4;background:#fffaf0;border-radius:11px;font-size:12px}.traveler-select select{width:auto;min-width:100px;padding:6px 28px 6px 8px}
+#home>.grid{grid-template-columns:minmax(0,3fr) minmax(290px,2fr);align-items:stretch}#home>.grid>.card{height:520px;min-height:0}#home>.grid>.card:first-child{order:2;overflow:hidden;display:flex;flex-direction:column}#home>.grid>.card:last-child{order:1}#home #overviewMap{height:440px;flex:1}#home .timeline{overflow:auto;padding-right:5px;min-height:0}.compact-day{display:grid;grid-template-columns:55px minmax(0,1fr) 58px;gap:9px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line)}.compact-day:last-child{border:0}.compact-day .date{font-weight:900;color:#bd5d3b}.compact-day b{font-size:13px;display:block}.compact-day small{font-size:10px;color:var(--muted)}.compact-day .btn{padding:6px}
+.cost-dashboard,.stop-costline{display:none!important}.person-cumulative{background:linear-gradient(135deg,#dbecea,#c6e0dd)!important}.person-cumulative strong{color:#176d7b}
+@media(max-width:900px){#home>.grid{grid-template-columns:1fr}#home>.grid>.card{height:auto}#home>.grid>.card:first-child{order:2;max-height:520px}#home>.grid>.card:last-child{order:1;height:420px}.overview-head{align-items:flex-start}.overview-tools{justify-content:flex-end}}
+@media(max-width:650px){.overview-head{display:block}.overview-tools{margin-top:12px;justify-content:flex-start}.traveler-select{width:100%;justify-content:space-between}.traveler-select select{flex:1}.overview-tools .versionbar{width:100%}.overview-tools .versionbar .vbtn{flex:1}#home>.grid>.card:last-child{height:350px}}
+</style>
+<script>
+function selectedTraveler(){ensureLedger();return data.selectedTraveler||data.ledger.people[0]?.id||'all'}
+function setSelectedTraveler(id){data.selectedTraveler=id;save();renderAll()}
+function personStopCents(di,si,id){
+ const estimate=Math.round(costs([plan()[di].stops[si]]).twd*100),entries=linkedEntriesFor(di,si),linkedTotal=entries.reduce((n,e)=>n+entryCents(e),0),remaining=Math.max(0,estimate-linkedTotal);
+ if(id==='all')return remaining+linkedTotal;
+ let share=Math.floor(remaining/Math.max(data.ledger.people.length,1));
+ entries.forEach(e=>share+=(sharesCents(e)[id]||0));
+ return share
+}
+function personThroughCents(di,id){let sum=0;for(let d=0;d<=di;d++)for(let s=0;s<plan()[d].stops.length;s++)sum+=personStopCents(d,s,id);return sum}
+const finalHomeRender=renderHome;
+renderHome=function(){
+ finalHomeRender();ensureLedger();
+ let head=el('overviewHead');
+ if(!head){head=document.createElement('div');head.id='overviewHead';head.className='overview-head';const title=routeCard.querySelector('h2');title.before(head);head.append(title);const tools=document.createElement('div');tools.className='overview-tools';tools.innerHTML='<button class="btn today-btn" type="button" onclick="openDay(demoOrTodayIndex())">◎ 今天</button><label class="traveler-select">目前查看<select id="travelerPicker" onchange="setSelectedTraveler(this.value)"></select></label>';head.append(tools);tools.prepend(versionBar)}
+ const picker=el('travelerPicker');picker.innerHTML='<option value="all">全團</option>'+data.ledger.people.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');picker.value=selectedTraveler();
+ el('timeline').innerHTML=plan().map((d,i)=>'<div class="compact-day"><div class="date">'+esc(d.date)+'</div><div><b>'+esc(dayCity(d,i))+'</b><small>'+esc(d.title)+' · 住 '+esc(d.sleep)+'</small></div><button class="btn" onclick="openDay('+i+')">查看</button></div>').join('');
+ const grid=el('timeline').closest('.grid'),mapCard=el('overviewMap').closest('.card'),listCard=el('timeline').closest('.card');if(grid.firstElementChild!==mapCard)grid.prepend(mapCard)
+};
+const finalDayRender=renderDay;
+renderDay=function(){
+ finalDayRender();ensureLedger();el('costDashboard')?.remove();el('stopList').querySelectorAll('.stop-costline').forEach(x=>x.remove());
+ let metric=el('personCumulative');if(!metric){metric=document.createElement('div');metric.id='personCumulative';metric.className='metric person-cumulative';el('dayCost').closest('.metric').after(metric)}
+ const id=selectedTraveler(),p=data.ledger.people.find(x=>x.id===id),name=id==='all'?'全團':p?.name||'旅伴';metric.innerHTML='<small>總累積消費 · '+esc(name)+'</small><strong>'+nt(personThroughCents(currentDay,id))+'</strong>'
+};
+</script>
+<style>
+#home>.grid>.map-card{order:1!important;height:520px!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}
+#home>.grid>.compact-card{order:2!important;height:520px!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}
+#home>.grid>.map-card #overviewMap{height:auto!important;min-height:0!important;flex:1!important}
+#home>.grid>.compact-card .timeline{overflow-y:auto!important;overflow-x:hidden!important;min-height:0!important;flex:1!important;padding-right:8px;scrollbar-gutter:stable}
+#home>.grid>.compact-card .timeline::-webkit-scrollbar{width:6px}#home>.grid>.compact-card .timeline::-webkit-scrollbar-thumb{background:#d6c9b3;border-radius:99px}
+.compact-day{grid-template-columns:52px minmax(0,1fr) 52px!important;padding:12px 0!important}.compact-day .compact-route{font-size:11px;color:#697673;line-height:1.55;margin-top:3px;white-space:normal}.compact-day .compact-sleep{display:block;color:#a75a3e;font-size:10px;margin-top:3px}
+@media(max-width:900px){#home>.grid>.map-card{height:410px!important}#home>.grid>.compact-card{height:500px!important}}
+</style>
+<script>
+function compactPlaces(d){const names=d.stops.map(s=>s.name).filter(n=>!/(抵達|前往|入住|早餐|午餐|晚餐|拿行李|取車|還車|飛往|夜巴)/i.test(n));return(names.length?names:d.stops.map(s=>s.name)).slice(0,4)}
+const scrollFixedHomeRender=renderHome;
+renderHome=function(){
+ scrollFixedHomeRender();
+ const grid=el('timeline').closest('.grid'),mapCard=el('overviewMap').closest('.card'),listCard=el('timeline').closest('.card');mapCard.classList.add('map-card');listCard.classList.add('compact-card');listCard.querySelector('h2').textContent='精簡日程';
+ el('timeline').innerHTML=plan().map((d,i)=>'<div class="compact-day"><div class="date">'+esc(d.date)+'</div><div><b>'+esc(dayCity(d,i))+'</b><div class="compact-route">'+compactPlaces(d).map(esc).join('・')+'</div><span class="compact-sleep">住宿 '+esc(d.sleep)+'</span></div><button class="btn" onclick="openDay('+i+')">查看</button></div>').join('');
+ if(grid.firstElementChild!==mapCard)grid.prepend(mapCard)
+};
+</script>
+<script src="cloud-config.js"></script>
+<style>
+.cloud-card{margin-top:16px}.cloud-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cloud-status{display:flex;align-items:center;gap:8px;padding:11px 13px;border-radius:11px;background:#f4ecdd;font-size:12px;margin:12px 0}.cloud-dot{width:9px;height:9px;border-radius:50%;background:#b66a47}.cloud-status.online .cloud-dot{background:#3c8c70}.cloud-status.syncing .cloud-dot{background:#d3a345;animation:pulse 1s infinite}@keyframes pulse{50%{opacity:.25}}.share-row{display:flex;gap:8px}.share-row input{flex:1}.cloud-grid .wide{grid-column:1/-1}@media(max-width:650px){.cloud-grid{grid-template-columns:1fr}.cloud-grid .wide{grid-column:auto}.share-row{display:grid}}
+</style>
+<script>
+const CLOUD_CONFIG_KEY='turkeyTripCloudConfig_v1';let cloudTimer=null,cloudPoll=null,cloudApplying=false,cloudBusy=false,cloudLastRevision=0;
+function queryCloudConfig(){const q=new URLSearchParams(location.search),defaults=window.TURKEY_CLOUD||{},saved=JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY)||'{}');return{url:saved.url||defaults.supabaseUrl||q.get('sb')||'',key:saved.key||defaults.anonKey||q.get('key')||'',tripId:q.get('trip')||saved.tripId||''}}
+let cloud=queryCloudConfig();
+function cloudReady(){return /^https:\/\/.+\.supabase\.co\/?$/.test(cloud.url)&&cloud.key.length>20&&/^[0-9a-f-]{36}$/i.test(cloud.tripId)}
+function cloudHeaders(){return{apikey:cloud.key,Authorization:'Bearer '+cloud.key,'Content-Type':'application/json',...(cloud.tripId?{'x-trip-id':cloud.tripId}:{})}}
+function cloudEndpoint(){return cloud.url.replace(/\/$/,'')+'/rest/v1/trip_state'}
+function setCloudStatus(text,type=''){const box=el('cloudStatus');if(!box)return;box.className='cloud-status '+type;box.innerHTML='<i class="cloud-dot"></i><span>'+esc(text)+'</span>'}
+function persistCloud(){localStorage.setItem(CLOUD_CONFIG_KEY,JSON.stringify(cloud))}
+function makeUuid(){return crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:r&3|8).toString(16)})}
+async function cloudPush(){
+ if(!cloudReady()||cloudBusy||cloudApplying)return;cloudBusy=true;setCloudStatus('正在上傳變更…','syncing');const revision=Date.now();
+ try{const res=await fetch(cloudEndpoint(),{method:'POST',headers:{...cloudHeaders(),Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({id:cloud.tripId,payload:data,revision,updated_at:new Date().toISOString(),updated_by:data.selectedTraveler||''})});if(!res.ok)throw Error(await res.text());cloudLastRevision=revision;setCloudStatus('已同步 · '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}),'online')}
+ catch(e){setCloudStatus('目前離線或設定有誤；資料已保存在這台裝置') }finally{cloudBusy=false}
+}
+async function cloudPull(show=true){
+ if(!cloudReady()){if(show)setCloudStatus('尚未連接 Supabase');return}if(cloudBusy)return;cloudBusy=true;if(show)setCloudStatus('正在讀取共享資料…','syncing');
+ try{const res=await fetch(cloudEndpoint()+'?id=eq.'+encodeURIComponent(cloud.tripId)+'&select=payload,revision,updated_at',{headers:cloudHeaders()});if(!res.ok)throw Error(await res.text());const rows=await res.json();
+ if(!rows.length){cloudBusy=false;await cloudPush();return}
+ const row=rows[0];if(Number(row.revision)>cloudLastRevision){cloudApplying=true;data=upgradeItinerary(row.payload);ensureLedger();baseLocalSave();cloudApplying=false;cloudLastRevision=Number(row.revision);renderAll()}
+ if(show)setCloudStatus('已同步 · '+new Date(row.updated_at).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}),'online')
+ }catch(e){if(show)setCloudStatus('無法連線；繼續使用本機資料')}finally{cloudBusy=false}
+}
+const baseLocalSave=save;
+save=function(){baseLocalSave();if(!cloudApplying&&cloudReady()){clearTimeout(cloudTimer);cloudTimer=setTimeout(cloudPush,900)}};
+function saveCloudSettings(){
+ const url=el('cloudUrl').value.trim(),key=el('cloudKey').value.trim(),tripId=el('cloudTripId').value.trim();
+ if(!/^https:\/\/.+\.supabase\.co\/?$/.test(url)){alert('請填入完整的 Supabase Project URL');return}
+ if(key.length<20){alert('請填入 anon public key，請勿使用 service_role key');return}
+ if(tripId&&!/^[0-9a-f-]{36}$/i.test(tripId)){alert('旅程 ID 格式不正確');return}
+ cloud={url,key,tripId:tripId||makeUuid()};persistCloud();renderCloudPanel();cloudPull()
+}
+function createSharedTrip(){if(!cloud.url||!cloud.key){alert('請先填入 Supabase URL 與 anon public key');return}cloud.tripId=makeUuid();persistCloud();renderCloudPanel();cloudPush()}
+function shareUrl(){const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set('trip',cloud.tripId);if(!(window.TURKEY_CLOUD?.supabaseUrl&&window.TURKEY_CLOUD?.anonKey)){u.searchParams.set('sb',cloud.url);u.searchParams.set('key',cloud.key)}return u.href}
+async function copyShare(){if(!cloudReady()){alert('請先完成 Supabase 設定並建立共享旅程');return}const value=shareUrl();try{await navigator.clipboard.writeText(value);alert('共享網址已複製')}catch{el('shareLink').select();document.execCommand('copy');alert('共享網址已複製')}}
+function renderCloudPanel(){
+ const box=el('cloudPanel');if(!box)return;el('cloudUrl').value=cloud.url;el('cloudKey').value=cloud.key;el('cloudTripId').value=cloud.tripId;el('shareLink').value=cloud.tripId?shareUrl():'';setCloudStatus(cloudReady()?'雲端同步已設定，正在連線…':'尚未連接 Supabase',cloudReady()?'syncing':'')
+}
+const settings=document.querySelector('#settings .grid');const cloudCard=document.createElement('div');cloudCard.id='cloudPanel';cloudCard.className='card cloud-card';cloudCard.innerHTML='<h2>群組雲端同步</h2><p class="muted">GitHub Pages 提供網站，Supabase 保存全團共用資料。請使用 anon public key，不能使用 service_role key。</p><div class="cloud-grid"><label>Supabase Project URL<input id="cloudUrl" placeholder="https://xxxx.supabase.co"></label><label>Anon public key<input id="cloudKey" type="password" autocomplete="off"></label><label class="wide">旅程 ID<input id="cloudTripId" placeholder="留空會自動建立 UUID"></label></div><div id="cloudStatus" class="cloud-status"><i class="cloud-dot"></i><span>尚未設定</span></div><div class="actions"><button class="btn primary" onclick="saveCloudSettings()">儲存並連線</button><button class="btn" onclick="createSharedTrip()">建立新的共享旅程</button><button class="btn" onclick="cloudPull()">立即同步</button></div><label style="margin-top:14px">群組共享網址<div class="share-row"><input id="shareLink" readonly><button class="btn" type="button" onclick="copyShare()">複製網址</button></div></label>';settings.after(cloudCard);
+window.addEventListener('load',()=>{cloud=queryCloudConfig();persistCloud();renderCloudPanel();if(cloudReady()){cloudPull();cloudPoll=setInterval(()=>cloudPull(false),15000)}});
+</script>
+</body>
+</html>
