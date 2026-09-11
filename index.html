@@ -1729,15 +1729,15 @@ function printableRoute(stops){
 function prepareRoadbookPrint(all){
  let root=el('roadbookPrint');if(!root){root=document.createElement('div');root.id='roadbookPrint';document.body.append(root)}
  const days=all?plan().map((d,i)=>({d,i})):[{d:plan()[currentDay],i:currentDay}];
- root.innerHTML=days.map(({d,i})=>'<article><h1>火雞熱氣球大冒險 · '+esc(data.version)+' 版</h1><h2>D'+(i+1)+' · '+esc(d.date)+' · '+esc(d.title)+'</h2><p>住宿：'+esc(d.sleep)+' ｜ 當日預估：'+nt(dayEffectiveCents(i))+'</p>'+printableRoute(d.stops)+'<p>站別示意圖：依座標連線，非道路導航；不依賴網路底圖。</p><table><colgroup><col style="width:11%"><col style="width:26%"><col style="width:18%"><col style="width:45%"></colgroup><thead><tr><th>站／時間</th><th>行程</th><th>交通／費用</th><th>介紹與注意事項</th></tr></thead><tbody>'+d.stops.map((s,j)=>'<tr><td>'+(j+1)+'<br>'+esc(s.time)+'</td><td>'+esc(sightInfo(s).name)+'</td><td>'+esc(modeName(s.mode))+'<br>停留 '+s.stay+' 分<br>'+esc([s.ticketEur?'€'+s.ticketEur:'',s.ticketTry?'₺'+s.ticketTry:'',s.costTry?'其他 ₺'+s.costTry:''].filter(Boolean).join(' / '))+'</td><td>'+esc(sightInfo(s).intro)+'<br>'+esc(s.desc||'')+'</td></tr>').join('')+'</tbody></table>'+((data.tickets||[]).filter(t=>t.day===i&&(t.scope==='all'||t.scope===data.version)).map(t=>'<p>票券／住宿：'+esc(t.title)+' ｜ '+esc(t.code||'')+' ｜ '+esc(t.address||'')+' ｜ '+esc(t.note||'')+'</p>').join(''))+'</article>').join('');
+ root.innerHTML=days.map(({d,i})=>'<article><h1>火雞熱氣球大冒險 · '+esc(data.version)+' 版</h1><h2>D'+(i+1)+' · '+esc(d.date)+' · '+esc(d.title)+'</h2><p>住宿：'+esc(d.sleep)+' ｜ 當日預估：'+nt(dayEffectiveCents(i))+'</p>'+'<table><colgroup><col style="width:11%"><col style="width:26%"><col style="width:18%"><col style="width:45%"></colgroup><thead><tr><th>站／時間</th><th>行程</th><th>交通／費用</th><th>介紹與注意事項</th></tr></thead><tbody>'+d.stops.map((s,j)=>'<tr><td>'+(j+1)+'<br>'+esc(s.time)+'</td><td>'+esc(sightInfo(s).name)+'</td><td>'+esc(modeName(s.mode))+'<br>停留 '+s.stay+' 分<br>'+esc([s.ticketEur?'€'+s.ticketEur:'',s.ticketTry?'₺'+s.ticketTry:'',s.costTry?'其他 ₺'+s.costTry:''].filter(Boolean).join(' / '))+'</td><td>'+esc(sightInfo(s).intro)+'<br>'+esc(s.desc||'')+'</td></tr>').join('')+'</tbody></table>'+((data.tickets||[]).filter(t=>t.day===i&&(t.scope==='all'||t.scope===data.version)).map(t=>'<p>票券／住宿：'+esc(t.title)+' ｜ '+esc(t.code||'')+' ｜ '+esc(t.address||'')+' ｜ '+esc(t.note||'')+'</p>').join(''))+'</article>').join('');
  document.body.classList.add('print-roadbook');
  window.print();
 }
 window.addEventListener('afterprint',()=>document.body.classList.remove('print-roadbook'));
 window.addEventListener('load',()=>{
  const btn=Array.from(document.querySelectorAll('button')).find(b=>b.getAttribute('onclick')==='window.print()');
- if(btn){btn.textContent='匯出當日 PDF';btn.removeAttribute('onclick');btn.addEventListener('click',()=>prepareRoadbookPrint(false));
- const all=document.createElement('button');all.className='btn';all.textContent='匯出十天 PDF';all.onclick=()=>prepareRoadbookPrint(true);btn.after(all)}
+ if(btn){btn.textContent='匯出當日行程 PDF';btn.removeAttribute('onclick');btn.addEventListener('click',()=>prepareRoadbookPrint(false));
+ const all=document.createElement('button');all.className='btn';all.textContent='匯出完整行程 PDF';all.onclick=()=>prepareRoadbookPrint(true);el('overviewMap').before(all)}
  // Local files cannot reliably identify a website to the public tile service.
  for(const map of [mapDay,mapOverview]){
   if(!map||map.fallbackId||typeof L==='undefined')continue;
@@ -1752,6 +1752,16 @@ window.addEventListener('load',()=>{
  }
 });
 </script>
+<style id="ticket-alignment">
+.ticket-row{align-items:start;grid-template-columns:minmax(0,1fr) 64px;gap:14px;padding:16px 0}
+.ticket-row>div{min-width:0}.ticket-row b{display:block;font-size:15px;line-height:1.6;overflow-wrap:anywhere}
+.ticket-row p{font-size:14px;line-height:1.75;white-space:pre-wrap;margin:6px 0}
+.ticket-row>button{align-self:start;justify-self:end;width:64px;min-height:44px;padding:8px}
+#dailyTicketRows .ticket-row .btn{font-family:var(--ui-font)}
+#dailyTicketRows+.btn{margin-top:12px}
+#dailyTicketRows:empty{display:none}
+@media(max-width:650px){.ticket-row{grid-template-columns:minmax(0,1fr) 60px;gap:10px}.ticket-row>button{width:60px}.ticket-row b{font-size:14px}}
+</style>
 </body>
 </html>
 
