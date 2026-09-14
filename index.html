@@ -1967,5 +1967,51 @@ window.addEventListener('load',()=>{
  const b=document.createElement('button');b.className='btn';b.textContent='重新建議當日時間';b.onclick=()=>previewSchedule();el('reorderHelp').after(b);
 });
 </script>
+<script id="independent-dated-budget">
+// Old link fields remain in backups but no longer affect totals, dates or stop editing.
+linkedEntriesFor=function(){return []};
+plannedItems=function(){return []};
+budgetRefs=function(){return []};
+remapExpenseLinks=function(){};
+deleteStop=originalDelete;
+ledgerTotals=function(){const es=applicableEntries();return{remaining:0,entries:es.reduce((n,e)=>n+entryCents(e),0),paid:es.filter(e=>e.paid).reduce((n,e)=>n+entryCents(e),0)}};
+function budgetDateNumber(date){if(!/^\d{4}-\d{2}-\d{2}$/.test(date||''))return NaN;const n=Date.parse(date+'T00:00:00Z')/86400000;return Number.isFinite(n)&&new Date(n*86400000).toISOString().slice(0,10)===date?n:NaN}
+function legacyBudgetDate(e){return Number.isInteger(e.day)&&e.day>=0?new Date(Date.UTC(2026,8,18+e.day)).toISOString().slice(0,10):''}
+function budgetRange(e){const start=e.budgetStartDate||legacyBudgetDate(e),end=e.budgetEndDate||start,a=budgetDateNumber(start),b=budgetDateNumber(end);return{start,end,a,b,days:Number.isFinite(a)&&Number.isFinite(b)&&b>=a?b-a+1:0}}
+function datedEntryCents(e,date,id='all'){
+ const r=budgetRange(e),index=budgetDateNumber(date)-r.a;if(!r.days||index<0||index>=r.days||!Number.isFinite(index))return 0;
+ const shares=sharesCents(e);let offset=0,result=0;
+ // Rotate rounding cents so each person's full-period share and daily group total reconcile.
+ for(const [person,cents]of Object.entries(shares)){const remainder=cents%r.days,extra=((index-offset)%r.days+r.days)%r.days<remainder?1:0;if(id==='all'||id===person)result+=Math.floor(cents/r.days)+extra;offset=(offset+remainder)%r.days}
+ return result;
+}
+function budgetDayCents(di,id='all',paidOnly=false){return applicableEntries().filter(e=>!paidOnly||e.paid).reduce((n,e)=>n+datedEntryCents(e,dateAt(di),id),0)}
+dayEffectiveCents=function(di){return budgetDayCents(di)};
+dayPaidCents=function(di){return budgetDayCents(di,'all',true)};
+personThroughCents=function(di,id){let sum=0;for(let d=0;d<=di;d++)sum+=budgetDayCents(d,id);return sum};
+const budgetDayBeforeSeparation=renderDay;
+renderDay=function(){budgetDayBeforeSeparation();el('stopList').querySelectorAll('.stop-budget-action,.linked-actions').forEach(n=>n.remove());const id=selectedTraveler(),name=id==='all'?'全團':data.ledger.people.find(p=>p.id===id)?.name||'旅伴';el('dayCost').textContent=nt(budgetDayCents(currentDay,id));el('dayCost').previousElementSibling.textContent='當日花費 · '+name;el('dayCost').closest('.metric').title='僅依預算日期與分帳計算，包含預估及已付款';el('personCumulative').title='旅程首日至當天的預算分攤累積，包含預估及已付款';};
+const budgetRenderBeforeSeparation=renderBudget;
+renderBudget=function(){budgetRenderBeforeSeparation();applicableEntries().forEach((e,i)=>{const row=el('ledgerList').children[i];if(!row)return;const small=row.querySelector('small');if(small)small.textContent=small.textContent.replace(' · 已對應行程','');const r=budgetRange(e),note=document.createElement('small');note.textContent=r.days?r.start+(r.days>1?' → '+r.end+' · 平均分攤 '+r.days+' 天':' · 單日'):'尚未設定分攤日期（仍計入總預算）';row.firstElementChild.append(note)});const empty=el('ledgerList').querySelector('.ledger-empty');if(empty)empty.textContent='尚未新增預算帳目。行程票價僅供參考，不計入此處。';};
+const expenseEditorBeforeSeparation=editExpense;
+editExpense=function(id){
+ expenseEditorBeforeSeparation(id);const form=el('ledgerForm'),old=data.ledger.entries.find(e=>e.id===id),r=old?budgetRange(old):{start:dateAt(currentDay),end:dateAt(currentDay)};
+ const link=form.elements.link;link.value='';link.closest('label').style.display='none';
+ const oldDay=form.elements.expenseDay;oldDay.closest('label').style.display='none';
+ const block=document.createElement('div');block.className='wide formgrid';block.innerHTML='<label>分攤起日<input name="budgetStartDate" type="date" required></label><label>分攤末日（含當天）<input name="budgetEndDate" type="date" required></label><p class="wide stay-note">單日請選相同日期；跨日平均除以天數，再依旅伴分帳計算。住宿按晚數分攤時，末日請選最後一晚，不含退房日。付款日期僅用於匯率，與分攤日期分開。</p>';form.querySelector('.formgrid').append(block);
+ form.elements.budgetStartDate.value=r.start||'';form.elements.budgetEndDate.value=r.end||r.start||'';
+ const submit=form.onsubmit;
+ form.onsubmit=event=>{const start=form.elements.budgetStartDate.value,end=form.elements.budgetEndDate.value,a=budgetDateNumber(start),b=budgetDateNumber(end);if(!Number.isFinite(a)||!Number.isFinite(b)||b<a){event.preventDefault();el('ledgerError').textContent='請選擇有效日期，末日不能早於起日。';return}
+  const before=new Set(data.ledger.entries.map(e=>e.id));link.value='';oldDay.value=String(Math.max(0,a-budgetDateNumber('2026-09-18')));submit(event);
+  if(el('expenseDialog').open)return;
+  const saved=id?data.ledger.entries.find(e=>e.id===id):data.ledger.entries.find(e=>!before.has(e.id));if(saved){saved.budgetStartDate=start;saved.budgetEndDate=end;delete saved.link;save();renderAll()}
+ };
+};
+window.addEventListener('load',()=>{
+ document.querySelectorAll('#budget p.muted').forEach(n=>{if(n.textContent.startsWith('全團總預估＝'))n.textContent='全團總預估只加總本頁帳目，不再連結行程票價。設定分攤日期與旅伴後，自動顯示每日花費及累積；預估與已付款皆納入每日花費，只有已付款參與轉帳結算。'});
+ document.querySelectorAll('#stopForm .stay-note').forEach(n=>{if(n.textContent.includes('儲存即納入總預估'))n.textContent='行程金額僅作票價／費用參考，不會計入總預算。實際預算與分帳請到「預算與分帳」新增帳目及分攤日期。'});
+ renderAll();
+});
+</script>
 </body>
 </html>
