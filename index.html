@@ -2013,5 +2013,21 @@ window.addEventListener('load',()=>{
  renderAll();
 });
 </script>
+<style id="budget-sort-style">.budget-sort{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}.budget-sort label{font-size:13px;color:var(--muted)}.budget-sort select{min-height:44px;padding:8px 30px 8px 10px;min-width:150px}@media(max-width:650px){.budget-sort{overflow-x:auto;flex-wrap:nowrap;padding-bottom:3px}.budget-sort label{white-space:nowrap}.budget-sort select{min-width:145px}}
+</style>
+<script id="budget-sorting">
+let budgetSortKey='date',budgetSortDir='asc';
+function sortBudgetRows(){
+ const host=el('ledgerList');if(!host)return;const rows=Array.from(host.querySelectorAll('.ledger-row'));const entries=applicableEntries();rows.forEach((row,i)=>{if(entries[i])row.dataset.entryId=entries[i].id});
+ const value=e=>{const r=budgetRange(e);if(budgetSortKey==='date')return r.start||'9999-99-99';if(budgetSortKey==='category')return e.category||'';if(budgetSortKey==='status')return e.paid?'1':'0';if(budgetSortKey==='amount')return entryCents(e);return e.name||''};
+ rows.sort((a,b)=>{const ea=entries.find(e=>e.id===a.dataset.entryId)||{},eb=entries.find(e=>e.id===b.dataset.entryId)||{},va=value(ea),vb=value(eb);let cmp=typeof va==='number'&&typeof vb==='number'?va-vb:String(va).localeCompare(String(vb),'zh-Hant');return budgetSortDir==='desc'?-cmp:cmp});rows.forEach(r=>host.append(r));
+}
+const renderBudgetWithSort=renderBudget;
+renderBudget=function(){renderBudgetWithSort();sortBudgetRows()};
+window.addEventListener('load',()=>{
+ const host=el('ledgerList');if(!host||el('budgetSort'))return;const bar=document.createElement('div');bar.id='budgetSort';bar.className='budget-sort';bar.innerHTML='<label for="budgetSortKey">排序</label><select id="budgetSortKey"><option value="date">日期</option><option value="category">分類</option><option value="status">款項狀態</option><option value="amount">金額</option><option value="name">款項名稱</option></select><select id="budgetSortDir" aria-label="排序方向"><option value="asc">由小到大／較早在前</option><option value="desc">由大到小／較晚在前</option></select>';
+ host.before(bar);el('budgetSortKey').value=budgetSortKey;el('budgetSortDir').value=budgetSortDir;el('budgetSortKey').onchange=e=>{budgetSortKey=e.target.value;sortBudgetRows()};el('budgetSortDir').onchange=e=>{budgetSortDir=e.target.value;sortBudgetRows()};sortBudgetRows();
+});
+</script>
 </body>
 </html>
