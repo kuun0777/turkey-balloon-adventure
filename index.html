@@ -1832,7 +1832,7 @@ function saveDatedStop(event){
  if(times)arr.forEach((stop,i)=>{if(i>+index)stop.time=times[i]});
  Object.assign(s,{time:v('fTime'),name:v('fName'),mode:v('fMode'),stay:Number(v('fStay')||0),lat:Number(v('fLat')||0),lng:Number(v('fLng')||0),travel:v('fTravel')===''?null:Number(v('fTravel')),costTry:Number(v('fCostTry')||0),ticketTry:Number(v('fTicketTry')||0),ticketEur:Number(v('fTicketEur')||0),costTwd:Number(v('fCostTwd')||0),expenseCategory:v('fExpenseCategory'),mapQuery:v('fMapQuery'),official:v('fOfficial'),desc:v('fDesc')});
  if(old&&from!==to)arr.splice(+index,1);if(!old||from!==to)plan()[to].stops.push(s);
- plan()[to].stops.sort((a,b)=>timeToM(a.time)-timeToM(b.time));remapExpenseLinks(refs);currentDay=to;save();closeModal();renderAll();scheduleFullMapFit();
+ if(!plan()[to].manualOrder)plan()[to].stops.sort((a,b)=>timeToM(a.time)-timeToM(b.time));remapExpenseLinks(refs);currentDay=to;save();closeModal();renderAll();scheduleFullMapFit();
 }
 editTicket=function(id){
  const old=(data.tickets||[]).find(t=>t.id===id)||{},range=ticketRange({...old,day:old.day??currentDay});
@@ -1871,6 +1871,100 @@ window.addEventListener('load',()=>{
   const details=document.createElement('details');details.className='budget-info';const summary=document.createElement('summary');summary.setAttribute('aria-label','查看預算說明');summary.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg>';const content=document.createElement('div');node.before(details);content.append(node);details.append(summary,content);
  }
  renderAll();
+});
+</script>
+<style id="reorder-ticket-style">
+.stop-order-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px}.stop-order-tools .btn{min-width:44px;min-height:44px}.drag-handle{touch-action:none;cursor:grab;user-select:none}.stop.drag-source{opacity:.55}.stop.drop-target{outline:3px solid #247a82;outline-offset:-3px}.order-help{font-size:13px;line-height:1.6;margin:10px 0}.linked-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.linked-actions .btn{min-height:44px}.reorder-status{font-size:13px;color:#247a82;line-height:1.6}.btn:disabled{opacity:.4;cursor:not-allowed}
+</style>
+<script id="reorder-ticket-actions">
+function budgetRefs(){return(data.ledger?.entries||[]).filter(e=>e.link).map(entry=>{const [version,di,si]=entry.link.split(':');return{entry,version,stop:data.plans[version]?.[+di]?.stops[+si]}}).filter(r=>r.stop)}
+function reorderStops(from,to){
+ const d=plan()[currentDay],a=d.stops;if(from===to||from<0||to<0||from>=a.length||to>=a.length)return false;
+ const ordered=[...a],[s]=ordered.splice(from,1);ordered.splice(to,0,s);previewSchedule(ordered);return true;
+}
+function unlinkBudgetEntry(id){
+ const entry=data.ledger.entries.find(e=>e.id===id);if(!entry)return;
+ showExpense('<h2>解除行程與帳目的連結？</h2><p>'+esc(entry.name)+'</p><p>帳目、付款與分帳都會保留。解除後行程預估與這筆支出會分開計算，總預估可能增加；若為重複費用，請再調整行程費用。</p><div class="dialog-actions"><button class="btn" onclick="closeExpense()">取消</button><button class="btn primary" id="confirmUnlinkBudget">解除連結</button></div>');
+ el('confirmUnlinkBudget').onclick=()=>{const current=data.ledger.entries.find(e=>e.id===id);if(current)current.link='';save();closeExpense();renderAll()};
+}
+function trashTicket(id){
+ const ticket=(data.tickets||[]).find(t=>t.id===id);if(!ticket)return;
+ showExpense('<h2>刪除這筆住宿／票券？</h2><p>'+esc(ticket.title)+'</p><p>會從所有適用日期及飯店頭尾移除，但不會刪除預算帳目或取消實際訂房。可在「還原已刪票券」找回。</p><div class="dialog-actions"><button class="btn" onclick="closeExpense()">取消</button><button class="btn danger" id="confirmTrashTicket">刪除票券</button></div>');
+ el('confirmTrashTicket').onclick=()=>{const latest=(data.tickets||[]).find(t=>t.id===id);if(latest){data.deletedTickets??=[];data.deletedTickets.push({...latest,deletedAt:new Date().toISOString()});data.tickets=data.tickets.filter(t=>t.id!==id);save()}closeExpense();renderAll()};
+}
+function showDeletedTickets(){
+ showExpense('<h2>還原已刪票券</h2><div>'+(data.deletedTickets||[]).map((t,i)=>'<p>'+esc(t.title)+' <button class="btn" data-restore-ticket="'+i+'">還原</button></p>').join('')+'</div><button class="btn" onclick="closeExpense()">關閉</button>');
+ el('expenseDialog').querySelectorAll('[data-restore-ticket]').forEach(b=>{const ticket=data.deletedTickets[+b.dataset.restoreTicket];b.onclick=()=>{const index=(data.deletedTickets||[]).findIndex(t=>t.id===ticket.id);if(index>=0){if(!(data.tickets||[]).some(t=>t.id===ticket.id)){const restored={...data.deletedTickets[index]};delete restored.deletedAt;data.tickets??=[];data.tickets.push(restored)}data.deletedTickets.splice(index,1);save()}closeExpense();renderAll()}});
+}
+const ticketEditorBeforeDelete=editTicket;
+editTicket=function(id){ticketEditorBeforeDelete(id);if(!id)return;const b=document.createElement('button');b.type='button';b.className='btn danger';b.textContent='刪除票券';b.onclick=()=>trashTicket(id);el('ticketForm').querySelector('.actions').prepend(b)};
+const ticketRowsBeforeDelete=renderTicketRows;
+renderTicketRows=function(){ticketRowsBeforeDelete();for(const target of ['dailyTicketRows','ticketRows']){const host=el(target);if(!host)continue;host.querySelectorAll('[data-ticket]').forEach(edit=>{const b=document.createElement('button');b.className='btn danger';b.textContent='刪除票券';b.onclick=()=>trashTicket(edit.dataset.ticket);edit.previousElementSibling.append(b)});if(data.deletedTickets?.length){const b=document.createElement('button');b.className='btn';b.textContent='還原已刪票券（'+data.deletedTickets.length+'）';b.onclick=showDeletedTickets;host.append(b)}}};
+let activeStopDrag=null;
+function cancelStopDrag(){if(!activeStopDrag)return;cancelAnimationFrame(activeStopDrag.frame);activeStopDrag.card.classList.remove('drag-source');activeStopDrag.cards.forEach(c=>c.classList.remove('drop-target'));activeStopDrag=null}
+function installStopDrag(handle,card,index){
+ handle.addEventListener('pointerdown',e=>{
+  if(e.button!==0||activeStopDrag)return;e.preventDefault();handle.setPointerCapture(e.pointerId);
+  const host=el('stopList'),cards=Array.from(host.querySelectorAll('.stop'));
+  const state=activeStopDrag={card,cards,index,target:index,y:e.clientY,startY:e.clientY,moved:false,frame:0};
+  const tick=()=>{if(activeStopDrag!==state)return;if(state.moved){const bounds=host.getBoundingClientRect();const speed=state.y<bounds.top+55?-9:state.y>bounds.bottom-55?9:0;host.scrollTop+=speed;let best=index,dist=Infinity;cards.forEach((c,i)=>{const r=c.getBoundingClientRect(),delta=Math.abs(state.y-(r.top+r.height/2));if(delta<dist){best=i;dist=delta}});state.target=best;cards.forEach((c,i)=>c.classList.toggle('drop-target',i===best));}state.frame=requestAnimationFrame(tick)};tick();
+ });
+ handle.addEventListener('pointermove',e=>{const s=activeStopDrag;if(!s||s.card!==card)return;s.y=e.clientY;if(Math.abs(e.clientY-s.startY)>7){s.moved=true;card.classList.add('drag-source')}});
+ handle.addEventListener('pointerup',()=>{const s=activeStopDrag;if(!s||s.card!==card)return;const to=s.target,move=s.moved;cancelStopDrag();if(move)reorderStops(index,to)});
+ handle.addEventListener('pointercancel',cancelStopDrag);handle.addEventListener('lostpointercapture',cancelStopDrag);
+ handle.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();reorderStops(index,index+(e.key==='ArrowUp'?-1:1))}if(e.key==='Escape')cancelStopDrag()});
+}
+const dayBeforeReorder=renderDay;
+renderDay=function(){cancelStopDrag();dayBeforeReorder();const host=el('stopList'),cards=Array.from(host.querySelectorAll('.stop'));let note=el('reorderHelp');if(!note){note=document.createElement('p');note.id='reorderHelp';note.className='order-help';note.textContent='按住「拖曳排序」上下移動；一般區域仍可捲動。只改順序，保留時間與費用。';host.before(note);const status=document.createElement('p');status.id='reorderStatus';status.className='reorder-status';status.setAttribute('role','status');note.after(status)}
+ cards.forEach((card,i)=>{const tools=document.createElement('div');tools.className='stop-order-tools';const handle=document.createElement('button');handle.className='btn drag-handle';handle.type='button';handle.textContent='↕ 拖曳排序';handle.setAttribute('aria-label','拖曳第 '+(i+1)+' 站排序，也可用上下方向鍵');tools.append(handle);installStopDrag(handle,card,i);
+  for(const [delta,label]of [[-1,'↑'],[1,'↓']]){const b=document.createElement('button');b.className='btn';b.textContent=label;b.setAttribute('aria-label',delta<0?'上移本站':'下移本站');b.disabled=i+delta<0||i+delta>=cards.length;b.onclick=()=>reorderStops(i,i+delta);tools.append(b)}card.prepend(tools);
+  const linked=linkedEntriesFor(currentDay,i);if(linked.length){const box=document.createElement('div');box.className='linked-actions';linked.forEach(entry=>{const b=document.createElement('button');b.className='btn';b.textContent='解除連結：'+entry.name;b.onclick=()=>unlinkBudgetEntry(entry.id);box.append(b)});card.querySelector('.stop-main').append(box)}
+ });
+};
+</script>
+<style>.schedule-preview{max-height:45svh;overflow:auto;margin:12px 0}.schedule-preview>div{display:grid;grid-template-columns:90px minmax(0,1fr);gap:12px;border-bottom:1px solid var(--line);padding:12px 0;line-height:1.7}.schedule-preview small{display:block}.schedule-preview .conflict{color:#a43528}.schedule-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.schedule-options input{min-width:0;width:100%;box-sizing:border-box}.schedule-options label{min-width:0}.time-lock-label{display:flex;gap:10px;align-items:center}.time-lock-label input{width:20px;height:20px;flex:none}</style>
+<script id="schedule-suggestions">
+function fixedStop(s){return s.timeLocked??(s.mode==='flight'||/夜巴|和欣/.test(s.name))}
+function suggestedSchedule(ordered,original,startTime,buffer){
+ let end=timeToM(startTime);const rows=[],errors=[];
+ ordered.forEach((s,i)=>{
+  const prior=ordered[i-1],changed=i>0&&original[original.indexOf(s)-1]!==prior;
+  const travel=i?Math.max(0,autoTravel(prior,changed?{...s,travel:null}:s)):0;
+  const earliest=i?end+travel+buffer:end,locked=fixedStop(s),time=locked?timeToM(s.time):earliest;
+  const late=locked&&earliest>time?earliest-time:0;
+  const stay=Math.max(0,Number(s.stay)||0);end=time+stay;
+  if(late)errors.push('第 '+(i+1)+' 站固定時間趕不上，差 '+late+' 分鐘');
+  if(time>=1440||end>=1440)errors.push('第 '+(i+1)+' 站跨日，請縮短或移到隔天');
+  rows.push({s,time,travel,changed,locked,late,missing:i>0&&!(prior.lat&&prior.lng&&s.lat&&s.lng)&&!(Number(s.travel)>0),end});
+ });return{rows,errors};
+}
+function previewSchedule(ordered=[...plan()[currentDay].stops]){
+ if(!ordered.length)return;const day=currentDay,version=data.version,original=[...plan()[day].stops],snapshot=JSON.stringify(plan()[day].stops);
+ showExpense('<h2>行程順序與建議時間</h2><p class="stay-note">確認後才儲存。依停留時間＋前往下一站交通＋緩衝估算；不是即時路況。換站後會重新估算交通。航班／夜巴預設固定，可在本站編輯「固定時間」調整。</p><div class="schedule-options"><label>當天開始時間<input id="scheduleStart" type="time" required value="'+esc(original[0].time)+'"></label><label>每段緩衝（分鐘）<input id="scheduleBuffer" type="number" min="0" max="120" step="1" value="10"></label></div><div id="schedulePreviewRows" class="schedule-preview"></div><p id="schedulePreviewError" class="stay-error" role="alert"></p><div class="dialog-actions"><button class="btn" onclick="closeExpense()">取消，不更動</button><button class="btn primary" id="applySchedule">套用順序與建議時間</button></div>');
+ let proposal;
+ function update(){const time=el('scheduleStart').value,buffer=Number(el('scheduleBuffer').value);if(!time||!Number.isInteger(buffer)||buffer<0||buffer>120){el('schedulePreviewError').textContent='請填開始時間與 0–120 分鐘緩衝';el('applySchedule').disabled=true;return}
+  proposal=suggestedSchedule(ordered,original,time,buffer);
+  el('schedulePreviewRows').innerHTML=proposal.rows.map((r,i)=>'<div><span><b>'+mToTime(r.time)+'</b><small>原 '+esc(r.s.time)+'</small></span><span>'+ (i+1)+'. '+esc(r.s.name)+'<small>停留 '+r.s.stay+' 分 · 交通約 '+r.travel+' 分'+(r.locked?' · 固定時間':'')+'</small>'+(r.missing?'<small class="conflict">缺少座標／交通資料，交通時間請另行確認。</small>':'')+(r.late?'<small class="conflict">比固定時間晚 '+r.late+' 分鐘，請提前出發或調整順序。</small>':'')+'</span></div>').join('');
+  el('schedulePreviewError').textContent=proposal.errors.join('；');el('applySchedule').disabled=proposal.errors.length>0;
+ }
+ el('scheduleStart').oninput=update;el('scheduleBuffer').oninput=update;update();
+ el('applySchedule').onclick=()=>{
+  if(version!==data.version||day!==currentDay||JSON.stringify(plan()[day].stops)!==snapshot){el('schedulePreviewError').textContent='行程已被更新，請關閉後重新產生建議，避免覆蓋旅伴修改。';el('applySchedule').disabled=true;return}
+  update();if(el('applySchedule').disabled)return;const refs=budgetRefs();proposal.rows.forEach(r=>{r.s.time=mToTime(r.time);if(r.changed)r.s.travel=null});plan()[day].stops=ordered;plan()[day].manualOrder=true;remapExpenseLinks(refs);save();closeExpense();renderAll();scheduleFullMapFit();el('reorderStatus').textContent='已套用建議時間與順序，預算連結保留。';
+ };
+}
+const extrasBeforeTimeLock=fillStopExtras;
+fillStopExtras=function(s={}){extrasBeforeTimeLock(s);el('fTimeLocked').checked=fixedStop(s)};
+const saveBeforeTimeLock=saveDatedStop;
+saveDatedStop=function(event){
+ const index=el('editIndex').value,s=index===''?null:plan()[currentDay].stops[+index],locked=el('fTimeLocked').checked;
+ saveBeforeTimeLock(event);
+ if(!el('stopModal').classList.contains('open')){const saved=s||plan()[currentDay].stops.find(x=>x.time===el('fTime').value&&x.name===el('fName').value);if(saved){saved.timeLocked=locked;save()}}
+};
+window.addEventListener('load',()=>{
+ const label=document.createElement('label');label.className='wide time-lock-label';label.innerHTML='<input id="fTimeLocked" type="checkbox">固定時間（航班、夜巴或已預約活動，建議排程不改動）';el('stopForm').append(label);el('stopForm').onsubmit=saveDatedStop;
+ el('reorderHelp').textContent='按住「拖曳排序」上下移動，放開後預覽順序與建議時間，再確認儲存。';
+ const b=document.createElement('button');b.className='btn';b.textContent='重新建議當日時間';b.onclick=()=>previewSchedule();el('reorderHelp').after(b);
 });
 </script>
 </body>
