@@ -1031,7 +1031,7 @@ drawMap=function(map,layers,stops){
   if(overview)marker.bindTooltip(esc(info.name),{permanent:false,direction:i%2?'left':'right',className:'station-label',offset:[12,0]});
   const box=document.createElement('div');box.className='station-pop';
   box.innerHTML='<small>'+esc(date)+' · 第 '+(i+1)+' 站 · '+esc(s.time)+'</small><h3>'+esc(info.name)+'</h3><div class="stop-thumb photo-'+stopPhoto(s)+'" role="img" aria-label="景點主題示意圖"></div><small>主題示意圖</small><p>'+esc(info.intro||s.desc||'')+'</p><a target="_blank" rel="noopener" href="'+esc(mapUrl(s))+'">Google Maps 導航 ↗</a><br>';
-  const button=document.createElement('button');button.className='btn';button.textContent='查看這一站';button.onclick=()=>{openDay(day);requestAnimationFrame(()=>{const card=el('stopList').children[i];card?.scrollIntoView({behavior:'smooth',block:'center'});card?.animate([{background:'#f4d88e'},{background:'transparent'}],{duration:1600})})};box.append(button);
+  const button=document.createElement('button');button.className='btn';button.textContent='查看這一站';button.onclick=()=>{openDay(day);requestAnimationFrame(()=>{const card=el('stopList').querySelectorAll('.stop')[i];card?.scrollIntoView({behavior:'smooth',block:'center'});card?.animate([{background:'#f4d88e'},{background:'transparent'}],{duration:1600})})};box.append(button);
   marker.bindPopup(box);layers.push(marker);
  });
  if(pts.length>1){
@@ -1046,7 +1046,7 @@ const priorStationDay=renderDay;
 renderDay=function(){
  priorStationDay();
  plan()[currentDay].stops.forEach((s,i)=>{
-  const card=el('stopList').children[i];if(!card)return;
+  const card=el('stopList').querySelectorAll('.stop')[i];if(!card)return;
   const info=sightInfo(s),heading=card.querySelector('h4');
   if(heading){heading.textContent=info.name;if(info.name!==s.name){const original=document.createElement('small');original.className='muted';original.textContent=s.name;heading.after(original)}}
   if(info.intro){const intro=document.createElement('p');intro.className='station-intro';intro.textContent=info.intro;card.querySelector('.desc')?.before(intro)}
@@ -1585,7 +1585,7 @@ function inlineStopWarnings(){
  el('stopList').querySelectorAll('.stop-alert').forEach(e=>e.remove());
  const stops=plan()[currentDay].stops;
  scheduleIssues(stops).forEach(({i,late,arrival})=>{
-  const card=el('stopList').children[i];if(!card)return;
+  const card=el('stopList').querySelectorAll('.stop')[i];if(!card)return;
   const details=document.createElement('details');details.className='stop-alert';
   const summary=document.createElement('summary');summary.textContent='時間可能衝突 · 約 '+late+' 分鐘';details.append(summary);
   const p=document.createElement('p');p.textContent='前一站 '+sightInfo(stops[i-1]).name+' 於 '+stops[i-1].time+' 開始，停留 '+stops[i-1].stay+' 分鐘，再加交通約 '+autoTravel(stops[i-1],stops[i])+' 分鐘，推算抵達 '+mToTime(arrival)+'；本站原訂 '+stops[i].time+'。若包含同一景區重疊參觀或移動已列為停留，請依實際狀況判斷。';details.append(p);
@@ -1729,7 +1729,7 @@ function printableRoute(stops){
 function prepareRoadbookPrint(all){
  let root=el('roadbookPrint');if(!root){root=document.createElement('div');root.id='roadbookPrint';document.body.append(root)}
  const days=all?plan().map((d,i)=>({d,i})):[{d:plan()[currentDay],i:currentDay}];
- root.innerHTML=days.map(({d,i})=>'<article><h1>火雞熱氣球大冒險 · '+esc(data.version)+' 版</h1><h2>D'+(i+1)+' · '+esc(d.date)+' · '+esc(d.title)+'</h2><p>住宿：'+esc(d.sleep)+' ｜ 當日預估：'+nt(dayEffectiveCents(i))+'</p>'+'<table><colgroup><col style="width:11%"><col style="width:26%"><col style="width:18%"><col style="width:45%"></colgroup><thead><tr><th>站／時間</th><th>行程</th><th>交通／費用</th><th>介紹與注意事項</th></tr></thead><tbody>'+d.stops.map((s,j)=>'<tr><td>'+(j+1)+'<br>'+esc(s.time)+'</td><td>'+esc(sightInfo(s).name)+'</td><td>'+esc(modeName(s.mode))+'<br>停留 '+s.stay+' 分<br>'+esc([s.ticketEur?'€'+s.ticketEur:'',s.ticketTry?'₺'+s.ticketTry:'',s.costTry?'其他 ₺'+s.costTry:''].filter(Boolean).join(' / '))+'</td><td>'+esc(sightInfo(s).intro)+'<br>'+esc(s.desc||'')+'</td></tr>').join('')+'</tbody></table>'+((data.tickets||[]).filter(t=>t.day===i&&(t.scope==='all'||t.scope===data.version)).map(t=>'<p>票券／住宿：'+esc(t.title)+' ｜ '+esc(t.code||'')+' ｜ '+esc(t.address||'')+' ｜ '+esc(t.note||'')+'</p>').join(''))+'</article>').join('');
+ root.innerHTML=days.map(({d,i})=>'<article><h1>火雞熱氣球大冒險 · '+esc(data.version)+' 版</h1><h2>D'+(i+1)+' · '+esc(d.date)+' · '+esc(d.title)+'</h2><p>住宿：'+esc(d.sleep)+' ｜ 當日預估：'+nt(dayEffectiveCents(i))+'</p>'+'<table><colgroup><col style="width:11%"><col style="width:26%"><col style="width:18%"><col style="width:45%"></colgroup><thead><tr><th>站／時間</th><th>行程</th><th>交通／費用</th><th>介紹與注意事項</th></tr></thead><tbody>'+d.stops.map((s,j)=>'<tr><td>'+(j+1)+'<br>'+esc(s.time)+'</td><td>'+esc(sightInfo(s).name)+'</td><td>'+esc(modeName(s.mode))+'<br>停留 '+s.stay+' 分<br>'+esc([s.costTwd?'TWD '+s.costTwd:'',s.ticketEur?'€'+s.ticketEur:'',s.ticketTry?'₺'+s.ticketTry:'',s.costTry?'其他 ₺'+s.costTry:''].filter(Boolean).join(' / '))+'</td><td>'+esc(sightInfo(s).intro)+'<br>'+esc(s.desc||'')+'</td></tr>').join('')+'</tbody></table>'+((data.tickets||[]).filter(t=>ticketOnDay(t,i)&&(t.scope==='all'||t.scope===data.version)).map(t=>'<p>票券／住宿：'+esc(t.title)+' ｜ '+esc(t.code||'')+' ｜ '+esc(t.address||'')+' ｜ '+esc(t.note||'')+'</p>').join(''))+'</article>').join('');
  document.body.classList.add('print-roadbook');
  window.print();
 }
@@ -1796,5 +1796,81 @@ window.addEventListener('load',()=>{
  }
 });
 </script>
+<style id="stay-budget-ui">
+.hotel-endpoint{border:1px solid var(--line);border-left:4px solid var(--teal,#247a82);border-radius:12px;background:#edf2eb;padding:14px 16px;margin:10px 0;line-height:1.7;overflow-wrap:anywhere}.hotel-endpoint small{display:block;color:var(--muted)}.hotel-endpoint .actions{margin-top:8px;flex-wrap:wrap}.hotel-endpoint .btn{min-height:44px}.budget-info>summary{display:flex;align-items:center;justify-content:center;list-style:none;width:44px;min-height:44px;cursor:pointer;color:#247a82;border:1px solid var(--line);border-radius:50%}.budget-info>summary::-webkit-details-marker{display:none}.budget-info>div{padding:12px;line-height:1.7;background:#f5ead4;border-radius:10px;margin:8px 0}.budget-info{margin:8px 0}.stay-note{font-size:13px;line-height:1.7}.stop-budget-action{margin-top:10px;min-height:44px}.hotel-pin{background:#c66b45;color:white;border:2px solid white;border-radius:50%;text-align:center;font:bold 13px/28px sans-serif}.stay-error{color:#a43528;grid-column:1/-1}
+</style>
+<script id="stay-budget-integration">
+const expenseCategories=['門票','住宿','交通','機票','餐飲','活動','購物','其他'];
+function dateAt(i){const d=plan()[i];return d?'2026-'+d.date.split('/').map(x=>x.padStart(2,'0')).join('-'):''}
+function nextDate(date){const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10)}
+function ticketRange(t){return {start:t.startDate||dateAt(t.day),end:t.endDate||t.startDate||dateAt(t.day)}}
+function ticketOnDay(t,di){const r=ticketRange(t),date=dateAt(di);return date>=r.start&&date<=r.end}
+function hotelsForDay(di,edge){const date=dateAt(di);return(data.tickets||[]).filter(t=>{if(t.kind!=='hotel'||!(t.scope==='all'||t.scope===data.version))return false;const r=ticketRange(t);return edge==='start'?r.start<date&&date<=r.end:r.start<=date&&date<r.end})}
+const costsBeforeTwd=costs;
+costs=function(stops){const result=costsBeforeTwd(stops);result.twd+=stops.reduce((n,s)=>n+Number(s.costTwd||0),0);return result};
+plannedItems=function(){return plan().flatMap((d,di)=>d.stops.map((s,si)=>({id:data.version+':'+di+':'+si,name:d.date+' '+s.name,cents:Math.round(costs([s]).twd*100)})))};
+function openStopBudget(si){
+ const s=plan()[currentDay].stops[si],link=data.version+':'+currentDay+':'+si,linked=linkedEntriesFor(currentDay,si);
+ editExpense(linked[0]?.id);
+ if(linked.length)return;
+ const f=el('ledgerForm');f.elements.name.value=s.name;f.elements.category.value=s.expenseCategory||'門票';f.elements.link.value=link;f.elements.expenseDay.value=currentDay;
+ const fees=[['TWD',Number(s.costTwd||0)],['TRY',Number(s.costTry||0)+Number(s.ticketTry||0)],['EUR',Number(s.ticketEur||0)]].filter(x=>x[1]>0);
+ const [currency,amount]=fees.length===1?fees[0]:['TWD',Math.round(costs([s]).twd*100)/100];f.elements.currency.value=currency;f.elements.amount.value=amount||'';f.elements.currency.dispatchEvent(new Event('change'));
+}
+const previousEditStop=editStop,previousAddStop=addStop;
+function fillStopExtras(s={}){el('fDate').value=dateAt(currentDay);el('fCostTwd').value=s.costTwd||0;el('fExpenseCategory').value=s.expenseCategory||'門票'}
+editStop=function(i){previousEditStop(i);fillStopExtras(plan()[currentDay].stops[i])};
+addStop=function(){previousAddStop();fillStopExtras();updateShiftPreview()};
+function remapExpenseLinks(refs){refs.forEach(({entry,stop,version})=>{const days=data.plans[version];for(let di=0;di<days.length;di++){const si=days[di].stops.indexOf(stop);if(si>=0){entry.link=version+':'+di+':'+si;entry.day=di;break}}})}
+function saveDatedStop(event){
+ event.preventDefault();const v=id=>el(id).value,from=currentDay,to=plan().findIndex((d,i)=>dateAt(i)===v('fDate')),index=v('editIndex');
+ if(to<0){el('shiftTimeError').textContent='請選擇 9/18–9/27 的行程日期。';return}
+ const arr=plan()[from].stops,old=index===''?null:arr[+index];let times;
+ try{if(old&&to===from)times=shiftedStopTimes(arr,+index,v('fTime'))}catch(error){el('shiftTimeError').textContent=error.message;return}
+ const refs=(data.ledger?.entries||[]).filter(e=>e.link).map(entry=>{const [version,di,si]=entry.link.split(':');return{entry,version,stop:data.plans[version]?.[+di]?.stops[+si]}}).filter(r=>r.stop);
+ const s=old||{};
+ if(times)arr.forEach((stop,i)=>{if(i>+index)stop.time=times[i]});
+ Object.assign(s,{time:v('fTime'),name:v('fName'),mode:v('fMode'),stay:Number(v('fStay')||0),lat:Number(v('fLat')||0),lng:Number(v('fLng')||0),travel:v('fTravel')===''?null:Number(v('fTravel')),costTry:Number(v('fCostTry')||0),ticketTry:Number(v('fTicketTry')||0),ticketEur:Number(v('fTicketEur')||0),costTwd:Number(v('fCostTwd')||0),expenseCategory:v('fExpenseCategory'),mapQuery:v('fMapQuery'),official:v('fOfficial'),desc:v('fDesc')});
+ if(old&&from!==to)arr.splice(+index,1);if(!old||from!==to)plan()[to].stops.push(s);
+ plan()[to].stops.sort((a,b)=>timeToM(a.time)-timeToM(b.time));remapExpenseLinks(refs);currentDay=to;save();closeModal();renderAll();scheduleFullMapFit();
+}
+editTicket=function(id){
+ const old=(data.tickets||[]).find(t=>t.id===id)||{},range=ticketRange({...old,day:old.day??currentDay});
+ showExpense('<h2>住宿／票券與日期</h2><form id="ticketForm" class="formgrid"><label>類型<select name="kind"><option value="ticket">票券／其他</option><option value="hotel">飯店住宿</option></select></label><label>名稱<input name="title" required maxlength="120"></label><label>開始／入住日期<input name="startDate" type="date" required></label><label>結束／退房日期<input name="endDate" type="date" required></label><label>版本<select name="scope"><option value="all">A/B 共用</option><option>A</option><option>B</option></select></label><label>訂單編號<input name="code" maxlength="100"></label><label class="wide">地址／集合地點<input name="address" maxlength="250"></label><label>緯度（可留空）<input name="lat" type="number" min="-90" max="90" step="any"></label><label>經度（可留空）<input name="lng" type="number" min="-180" max="180" step="any"></label><label class="wide">票券／訂單網址<input name="url" type="url"></label><label class="wide">備註<textarea name="note" maxlength="1500"></textarea></label><p class="wide stay-note">飯店會出現在入住日的終點、連住日的頭尾、退房日的起點。第一天出發地及夜巴日不會硬加飯店。填座標才會在今日地圖顯示 H；未填仍可用名稱／地址導航。住宿費請到預算編輯既有住宿帳目，這裡不重複收費。</p><p id="stayError" class="stay-error" role="alert"></p><div class="wide actions"><button class="btn primary">儲存</button><button type="button" class="btn" onclick="closeExpense()">取消</button></div></form>');
+ const f=el('ticketForm');for(const key of ['title','code','address','url','note','lat','lng'])f.elements[key].value=old[key]??'';
+ f.elements.kind.value=old.kind||'ticket';f.elements.scope.value=old.scope||'all';f.elements.startDate.value=range.start;f.elements.endDate.value=range.end;
+ f.onsubmit=e=>{e.preventDefault();const values=Object.fromEntries(new FormData(f)),isHotel=values.kind==='hotel';
+ if(values.endDate<values.startDate||(isHotel&&values.endDate===values.startDate)){el('stayError').textContent=isHotel?'退房日需晚於入住日。':'結束日不能早於開始日。';return}
+ if(values.url&&!safeTicketUrl(values.url)){el('stayError').textContent='網址請使用 https 或 http。';return}
+ const day=plan().findIndex((d,i)=>dateAt(i)===values.startDate),item={...old,...values,id:old.id||makeUuid(),day:day<0?0:day,lat:Number(values.lat)||0,lng:Number(values.lng)||0,url:safeTicketUrl(values.url)};
+ data.tickets??=[];const at=data.tickets.findIndex(t=>t.id===item.id);if(at<0)data.tickets.push(item);else data.tickets[at]=item;save();closeExpense();renderAll();
+ };
+};
+renderTicketRows=function(){
+ const all=(data.tickets||[]).filter(t=>t.scope==='all'||t.scope===data.version);
+ for(const [target,rows]of [['ticketRows',all],['dailyTicketRows',all.filter(t=>ticketOnDay(t,currentDay))]]){
+  const host=el(target);if(!host)continue;host.innerHTML=rows.length?rows.map(t=>{const r=ticketRange(t);return '<div class="ticket-row"><div><b>'+esc(t.title)+'</b><p>'+esc(r.start)+' → '+esc(r.end)+(t.kind==='hotel'?' · 入住／退房':'')+'</p><p>'+esc(t.code||'未填訂單編號')+'</p><p>'+esc(t.address||'')+'</p><p>'+esc(t.note||'')+'</p>'+(safeTicketUrl(t.url)?'<a class="btn" target="_blank" rel="noopener" href="'+esc(safeTicketUrl(t.url))+'">開啟票券 ↗</a>':'')+'</div><button class="btn" data-ticket="'+esc(t.id)+'">編輯</button></div>'}).join(''):'<p class="muted">尚未收納訂房或車票。</p>';host.querySelectorAll('[data-ticket]').forEach(b=>b.onclick=()=>editTicket(b.dataset.ticket));
+ }
+};
+function hotelEndpoint(edge){
+ const list=hotelsForDay(currentDay,edge),box=document.createElement('div');box.className='hotel-endpoint';
+ const label=edge==='start'?'出發飯店':'返回／入住飯店';box.innerHTML='<small>'+label+'</small>'+(list.length?list.map(t=>'<strong>'+esc(t.title)+'</strong><div>'+esc(t.address||'尚未填地址')+'</div><div class="actions"><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(t.address||t.title)+'">飯店導航 ↗</a><button class="btn" data-hotel="'+esc(t.id)+'">編輯住宿</button></div>').join(''):'<span>尚未指定飯店（搭機／夜巴日可略過）</span><div class="actions"><button class="btn" data-add-hotel>設定住宿日期</button></div>');
+ box.querySelectorAll('[data-hotel]').forEach(b=>b.onclick=()=>editTicket(b.dataset.hotel));const add=box.querySelector('[data-add-hotel]');if(add)add.onclick=()=>{editTicket();const f=el('ticketForm');f.elements.kind.value='hotel';f.elements.endDate.value=nextDate(f.elements.startDate.value)};return box;
+}
+const dayWithStay=renderDay;
+renderDay=function(){dayWithStay();const host=el('stopList');host.querySelectorAll('.stop').forEach((card,si)=>{const s=plan()[currentDay].stops[si],b=document.createElement('button');b.className='btn stop-budget-action';b.textContent=(s.expenseCategory||'門票')+' · '+(s.costTwd?'台幣 '+s.costTwd+' · ':'')+(linkedEntriesFor(currentDay,si).length?'編輯對應預算':'記帳／連結預算');b.onclick=()=>openStopBudget(si);card.querySelector('.stop-main').append(b)});host.prepend(hotelEndpoint('start'));host.append(hotelEndpoint('end'));};
+const drawWithStay=drawMap;
+drawMap=function(map,layers,stops){drawWithStay(map,layers,stops);if(map!==mapDay||map.fallbackId||typeof L==='undefined')return;const hotels=[...new Map([...hotelsForDay(currentDay,'start'),...hotelsForDay(currentDay,'end')].map(t=>[t.id,t])).values()];hotels.filter(t=>t.lat&&t.lng).forEach(t=>{const marker=L.marker([+t.lat,+t.lng],{icon:L.divIcon({className:'hotel-pin',html:'H',iconSize:[32,32]})}).bindPopup(esc(t.title));marker.addTo(map);layers.push(marker)})};
+const fitWithStay=fitFullTripMap;
+fitFullTripMap=function(map){fitWithStay(map);if(map!==mapDay||map?.fallbackId||typeof L==='undefined'||!map.getContainer().clientWidth)return;const pts=[...plan()[currentDay].stops,...hotelsForDay(currentDay,'start'),...hotelsForDay(currentDay,'end')].filter(s=>s.lat&&s.lng).map(s=>[+s.lat,+s.lng]);if(pts.length)map.fitBounds(pts,{padding:[28,28],maxZoom:12,animate:false})};
+window.addEventListener('load',()=>{
+ const form=el('stopForm'),extras=document.createElement('div');extras.className='wide formgrid';extras.innerHTML='<label>行程日期<input id="fDate" type="date" min="2026-09-18" max="2026-09-27" required></label><label>費用類型<select id="fExpenseCategory">'+expenseCategories.map(c=>'<option>'+c+'</option>').join('')+'</select></label><label>台幣費用 TWD<input id="fCostTwd" type="number" min="0" step=".01"></label><p class="stay-note">各幣別填不同費用，會相加；同一筆費用請勿重複填換算額。儲存即納入總預估，付款與分帳請點本站「記帳／連結預算」。跨日住宿請使用「當日住宿與票券」的入住／退房日期。</p>';form.prepend(extras);form.onsubmit=saveDatedStop;
+ el('fDate').addEventListener('change',()=>{el('shiftTimeSummary').textContent=el('fDate').value===dateAt(currentDay)?'同日修改時間會順延後續行程。':'移到其他日期，不順延原日期的其他行程。'});
+ for(const node of document.querySelectorAll('#budget>.card>p.muted,#budget>.card>.notice,#budget>.grid>.card>div.muted')){
+  const details=document.createElement('details');details.className='budget-info';const summary=document.createElement('summary');summary.setAttribute('aria-label','查看預算說明');summary.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg>';const content=document.createElement('div');node.before(details);content.append(node);details.append(summary,content);
+ }
+ renderAll();
+});
+</script>
 </body>
-</html>
+</html>+s.costTwd:'',s.ticketEur?'€'+s.ticketEur:'',s.ticketTry?'₺'+s.ticketTry:'',s.costTry?'其他 ₺'+s.costTry:''].filter(Boolean).join(' / '))+'</td><td>'+esc(sightInfo(s).intro)+'<br>'+esc(s.desc||'')+'</td></tr>').join('')+'</tbody></table>'+((data.tickets||[]).filter(t=>t.day===i&&(t.scope==='all'||t.scope===data.version)).map(t=>'<p>票券／住宿：'+esc(t.title)+' ｜ '+esc(t.code||'')+' ｜ '+esc(t.address||'')+' ｜ '+esc(t.note||'')+'</p>').join(''))+'</article>').join('');
