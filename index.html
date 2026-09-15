@@ -2133,5 +2133,129 @@ window.addEventListener('load',()=>{
  renderAll();
 });
 </script>
+<style id="local-page-frame">
+.page-frame{display:none;height:calc(100dvh - 100px);min-height:540px;max-height:1000px;background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;margin-bottom:20px}
+.page-frame:has(>.section.active){display:flex;flex-direction:column}
+.page-frame>.section.active{display:block;flex:1;min-height:0;overflow:auto;padding:16px;scrollbar-gutter:stable;overscroll-behavior:contain}
+.page-end{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-top:1px solid var(--line);background:#f5ead4;flex-shrink:0;font-size:12px;color:var(--muted)}
+.page-end .btn{min-height:44px}
+#budget .budget-title-group{display:flex;align-items:center;gap:10px}
+#budget #budgetHelpRail{margin:0;position:relative}
+#budget #budgetHelpRail details[open]{width:auto}
+#budget #budgetHelpRail .budget-help-content{position:absolute;z-index:30;top:48px;left:-120px;width:min(420px,calc(100vw - 70px));box-sizing:border-box;background:#fffaf0;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px #123f5025;padding:16px}
+.local-fold{margin:14px 0;border:1px solid var(--line);border-radius:12px;padding:0 14px}
+.local-fold>summary{min-height:48px;display:flex;align-items:center;cursor:pointer;font-weight:700}
+.local-fold>summary::after{content:'＋';margin-left:auto}.local-fold[open]>summary::after{content:'－'}
+.local-fold>.fold-body{max-height:420px;overflow:auto;padding-bottom:14px}
+#bookingGrid,#ticketRows{max-height:480px;overflow:auto;scrollbar-gutter:stable}
+
+.resource-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.resource-heading h2{margin:0}
+.custom-site-row{display:flex;align-items:center;gap:8px}.custom-site-row>a{flex:1;min-width:0}.custom-site-row button{min-width:44px;min-height:44px}
+#customSiteForm label{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}#customSiteForm input,#customSiteForm select{min-height:44px;font-size:16px}
+#siteError{color:#ab4a30;min-height:22px}
+@media(max-width:650px){.page-frame{height:calc(100dvh - 90px);min-height:450px;border-radius:14px}.page-frame>.section.active{padding:8px}.page-end{padding:8px 12px}.page-end span{max-width:65%;line-height:1.5}#budget .budget-title-group h2{font-size:23px}}
+@media print{.page-frame{display:contents!important;height:auto;max-height:none;overflow:visible}.page-end{display:none!important}.page-frame>.section.active{overflow:visible;height:auto}}
+</style>
+<dialog id="customSiteDialog" aria-labelledby="customSiteTitle">
+<form id="customSiteForm">
+<h2 id="customSiteTitle">新增常用網站</h2>
+<label>網站名稱<input name="siteName" required maxlength="80" placeholder="例如：飯店官網"></label>
+<label>分類<select name="siteGroup"></select></label>
+<label>網站網址<input name="siteUrl" type="url" required placeholder="https://example.com"></label>
+<p class="muted">只接受 http／https 網址。新增網站會隨旅程資料保存，連線時同步給群組。</p>
+<div id="siteError" role="alert"></div>
+<div class="dialog-actions"><button type="button" class="btn" id="cancelCustomSite">取消</button><button type="submit" class="btn primary">儲存網站</button></div>
+</form></dialog>
+<script id="local-prototype">
+function normalizedWebsite(value){const u=new URL(value.trim());if(!['http:','https:'].includes(u.protocol)||u.username||u.password)throw Error('請使用不含帳密的 http／https 網址。');return u.href}
+function renderCustomWebsites(){
+ const box=el('travelResources');if(!box)return;
+ let heading=box.querySelector('.resource-heading');if(!heading){heading=document.createElement('div');heading.className='resource-heading';const h=box.querySelector('h2');h.before(heading);heading.append(h);const add=document.createElement('button');add.type='button';add.className='btn primary';add.textContent='＋ 新增網站';add.onclick=()=>{el('customSiteForm').reset();el('siteError').textContent='';el('customSiteDialog').showModal()};heading.append(add)}
+ box.querySelectorAll('.custom-site-row').forEach(n=>n.remove());
+ const groups=box.querySelectorAll('.link-group');
+ (data.customWebsites||[]).forEach(site=>{let url;try{url=normalizedWebsite(site.url)}catch{return}const group=groups[Number(site.group)]||groups[0],row=document.createElement('div');row.className='custom-site-row';const a=document.createElement('a');a.textContent=site.name;a.href=url;a.target='_blank';a.rel='noopener noreferrer';const remove=document.createElement('button');remove.className='btn';remove.textContent='移除';remove.setAttribute('aria-label','移除自訂網站 '+site.name);remove.onclick=()=>{if(!confirm('移除「'+site.name+'」？'))return;data.customWebsites=data.customWebsites.filter(s=>s.id!==site.id);save();renderCustomWebsites()};row.append(a,remove);group.append(row)});
+}
+const localChecklistBase=renderChecklist;renderChecklist=function(){localChecklistBase();renderCustomWebsites()};
+window.addEventListener('load',()=>{
+ const names={home:'首頁總覽',daily:'每日行程',budget:'預算與分帳',bookings:'預訂進度',checklist:'注意事項與行李',settings:'備份與資料'};
+ document.querySelectorAll('.section').forEach(section=>{
+ const frame=document.createElement('div');frame.className='page-frame';section.before(frame);frame.append(section);section.tabIndex=0;section.setAttribute('aria-label',names[section.id]+'，內容可上下捲動');
+ const footer=document.createElement('footer');footer.className='page-end';const caption=document.createElement('span');caption.textContent=names[section.id]+' · 火雞熱氣球大冒險';const top=document.createElement('button');top.className='btn';top.textContent='回到本頁頂部';top.onclick=()=>section.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});footer.append(caption,top);frame.append(footer)});
+ const title=el('budget').querySelector('.ledger-head h2'),titleGroup=document.createElement('div');titleGroup.className='budget-title-group';title.before(titleGroup);titleGroup.append(title,el('budgetHelpRail'));
+ function fold(node,label){if(!node)return;const details=document.createElement('details');details.className='local-fold';const summary=document.createElement('summary');summary.textContent=label;const body=document.createElement('div');body.className='fold-body';node.before(details);details.append(summary,body);body.append(node)}
+ fold(el('budget').querySelector(':scope > .grid'),'旅伴結算與轉帳建議');
+ fold(el('dailyFxPanel'),'旅行匯率與帳本設定');
+ const select=el('customSiteForm').elements.siteGroup;travelResourceGroups.forEach(([name],i)=>select.add(new Option(name,String(i))));
+ el('cancelCustomSite').onclick=()=>el('customSiteDialog').close();
+ el('customSiteForm').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;try{const url=normalizedWebsite(form.elements.siteUrl.value),name=form.elements.siteName.value.trim();if(!name)throw Error('請填寫網站名稱。');if((data.customWebsites||[]).some(s=>s.url===url))throw Error('這個網址已新增。');data.customWebsites=data.customWebsites||[];data.customWebsites.push({id:makeUuid(),name,url,group:Number(form.elements.siteGroup.value)});save();renderCustomWebsites();el('customSiteDialog').close()}catch(err){el('siteError').textContent=err.message}};
+ renderCustomWebsites();
+});
+</script>
+
+<style id="full-home-height-preview">
+.page-frame{height:var(--full-home-height,1500px);max-height:none}
+.page-frame:has(>#home.active){height:auto}
+.page-frame>#home.active{flex:none;overflow:visible}
+#home>.grid{align-items:stretch!important}
+#home>.grid>.compact-card{height:auto!important;overflow:visible!important}
+#home>.grid>.compact-card .timeline{flex:none!important;overflow:visible!important;max-height:none!important;padding-right:0}
+#home>.grid>.map-card{height:auto!important;min-height:520px}
+#home>.grid>.map-card #overviewMap{min-height:320px!important}
+@media(max-width:900px){#home>.grid>.map-card{height:410px!important;min-height:410px}}
+@media print{.page-frame{height:auto!important}}
+</style>
+<script id="full-home-height-measure">
+function syncFullHomeHeight(){
+ const home=document.getElementById('home'),frame=home?.parentElement;
+ if(!home?.classList.contains('active')||!frame?.classList.contains('page-frame'))return;
+ const height=Math.ceil(frame.getBoundingClientRect().height);
+ if(height>0)document.documentElement.style.setProperty('--full-home-height',height+'px');
+ if(typeof mapOverview!=='undefined')mapOverview.invalidateSize();
+}
+window.addEventListener('load',()=>{
+ const home=document.getElementById('home');
+ const observer=new ResizeObserver(()=>requestAnimationFrame(syncFullHomeHeight));observer.observe(home);
+ document.fonts.ready.then(syncFullHomeHeight);syncFullHomeHeight();
+});
+window.addEventListener('resize',()=>requestAnimationFrame(syncFullHomeHeight));
+</script>
+<style id="preview-content-fill">
+#daily .daily-map-pane,#daily .daily-list-pane{height:var(--daily-fill,800px)}
+#budget #ledgerList{height:var(--budget-fill,700px);max-height:none;min-height:300px}
+#checklist>.grid>.card{height:var(--checklist-fill,650px)}
+#bookings #bookingGrid{height:var(--booking-fill,650px);max-height:none;overflow:auto;align-content:start}
+#bookings #ticketRows{max-height:450px}
+#settings>.grid{align-items:start}
+@media(max-width:900px){#daily .daily-map-pane{height:410px}#daily .daily-list-pane{height:var(--daily-fill,850px)}#daily .daily-workspace[data-view=map] .daily-map-pane{height:var(--daily-fill,850px)}}
+@media print{#budget #ledgerList,#bookings #bookingGrid,#checklist>.grid>.card{height:auto!important;max-height:none!important;overflow:visible!important}}
+</style>
+<script id="preview-content-fill-script">
+function fitPreviewContent(){
+ const section=document.querySelector('.page-frame>.section.active');if(!section||section.id==='home')return;
+ let target,variable,min=350;
+ if(section.id==='daily'){target=section.querySelector(matchMedia('(max-width:900px)').matches?'.daily-list-pane':'#dailyWorkspace');variable='--daily-fill';min=600;if(matchMedia('(max-width:900px)').matches&&section.querySelector('#dailyWorkspace').dataset.view==='map')target=section.querySelector('.daily-map-pane')}
+ if(section.id==='budget'){target=el('ledgerList');variable='--budget-fill'}
+ if(section.id==='checklist'){target=section.querySelector('.grid');variable='--checklist-fill';min=500}
+ if(section.id==='bookings'){target=el('bookingGrid');variable='--booking-fill';min=450}
+ if(!target||!target.getBoundingClientRect().height)return;
+ const rect=section.getBoundingClientRect(),children=Array.from(section.children).filter(n=>n.getBoundingClientRect().height>0);
+ const bottom=Math.max(...children.map(n=>n.getBoundingClientRect().bottom));
+ const used=bottom-rect.top+section.scrollTop+parseFloat(getComputedStyle(section).paddingBottom);
+ let growth=section.clientHeight-used;
+ if(section.id==='checklist'&&matchMedia('(max-width:900px)').matches){const cards=section.querySelectorAll(':scope>.grid>.card');if(cards.length>1&&cards[1].getBoundingClientRect().top>cards[0].getBoundingClientRect().top+10)growth/=cards.length}
+ const base=section.id==='checklist'?section.querySelector('.grid>.card').getBoundingClientRect().height:target.getBoundingClientRect().height;
+ const value=Math.max(min,Math.round(base+growth));
+ if(Math.abs(value-base)>1){section.style.setProperty(variable,value+'px');if(section.id==='daily'&&typeof mapDay!=='undefined')mapDay.invalidateSize()}
+}
+let previewFillFrame=0;
+function queuePreviewFill(){cancelAnimationFrame(previewFillFrame);previewFillFrame=requestAnimationFrame(fitPreviewContent)}
+window.addEventListener('load',()=>{
+ document.querySelectorAll('.section').forEach(section=>{new MutationObserver(queuePreviewFill).observe(section,{childList:true,subtree:true,attributes:true,attributeFilter:['class','open','data-view']});new ResizeObserver(queuePreviewFill).observe(section)});
+ document.addEventListener('toggle',queuePreviewFill,true);document.fonts.ready.then(queuePreviewFill);queuePreviewFill();
+});
+window.addEventListener('resize',queuePreviewFill);
+</script>
 </body>
 </html>
+
