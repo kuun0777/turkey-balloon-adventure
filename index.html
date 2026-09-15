@@ -2013,56 +2013,124 @@ window.addEventListener('load',()=>{
  renderAll();
 });
 </script>
-<style id="budget-sort-style">.budget-sort{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}.budget-sort label{font-size:13px;color:var(--muted)}.budget-sort select{min-height:44px;padding:8px 30px 8px 10px;min-width:150px}@media(max-width:650px){.budget-sort{overflow-x:auto;flex-wrap:nowrap;padding-bottom:3px}.budget-sort label{white-space:nowrap}.budget-sort select{min-width:145px}}
+<style id="review-layout">
+.budget-sort{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:16px;margin:16px 0;border:1px solid var(--line);border-radius:14px;background:#f5ead4}
+.budget-sort label{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:13px;font-weight:600}
+.budget-sort select,.budget-sort input{width:100%;min-width:0;min-height:44px;font-size:16px}
+.budget-sort-footer{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:var(--muted)}
+#ledgerList .ledger-row[hidden]{display:none!important}
+#daily .stop-grid{display:grid;grid-template-columns:68px minmax(0,1fr);grid-template-rows:auto auto;gap:12px;align-items:start}
+#daily .stop-rail{grid-column:1;grid-row:1/3;display:flex;flex-direction:column;gap:10px;align-items:center;min-width:0}
+#daily .stop-rail .time{width:68px;text-align:center;padding:8px 2px;box-sizing:border-box;font-variant-numeric:tabular-nums;white-space:nowrap}
+#daily .stop-rail .stop-thumb{width:68px;height:68px;flex:none;box-sizing:border-box}
+#daily .stop-main{grid-column:2;grid-row:1;min-width:0;overflow-wrap:anywhere}
+#daily .stop-main h4{font-size:17px;line-height:1.55;margin:0}
+#daily .stop-actions{grid-column:2;grid-row:2;position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+#daily .stop-actions .btn{width:100%;min-width:0;min-height:44px;padding:8px}
+#daily .official-row{display:flex;flex-wrap:wrap;gap:8px}
+#daily .official-row a{min-height:44px;display:flex;align-items:center}
+#checklist>.grid{align-items:stretch}
+#checklist>.grid>.card{height:510px;min-height:0;min-width:0;display:flex;flex-direction:column;box-sizing:border-box}
+#checklist .check-grid{display:flex;flex-direction:column;gap:8px;overflow:auto;flex:1;min-height:0;max-height:none;padding:4px 8px 8px 0;scrollbar-gutter:stable;overscroll-behavior:contain}
+#checklist .check{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fffdf8;line-height:1.6;flex-shrink:0}
+#checklist .check input{width:20px;height:20px;margin:3px 0 0;flex:none}
+#checklist .useful-links{margin-top:18px}
+#checklist .link-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-height:500px;overflow:auto;padding-right:8px;scrollbar-gutter:stable;overscroll-behavior:contain}
+.link-group{min-width:0;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fffdf8}
+.link-group h3{font-size:15px;margin:0 0 10px}
+.link-group a{display:flex;align-items:center;gap:8px;min-height:44px;font-size:14px;line-height:1.5;color:#176d7b;text-decoration:none;overflow-wrap:anywhere;border-top:1px solid var(--line)}
+.link-group a::before{content:'↗';flex:none}
+.link-group a:hover{text-decoration:underline}
+.budget-help-rail{margin:12px 0;display:flex;justify-content:flex-end}
+.budget-help-rail details{max-width:100%;border:1px solid var(--line);border-radius:12px;background:#fffaf0}
+.budget-help-rail summary{list-style:none;cursor:pointer;min-width:44px;min-height:44px;display:flex;justify-content:center;align-items:center;color:#176d7b;font-size:22px}
+.budget-help-rail summary::-webkit-details-marker{display:none}
+.budget-help-rail details[open]{width:100%}
+.budget-help-content{padding:0 16px 16px;font-size:14px;line-height:1.7;max-height:320px;overflow:auto}
+.budget-help-content p{margin:10px 0}
+@media(max-width:800px){.budget-sort{grid-template-columns:repeat(2,minmax(0,1fr))}#checklist .link-groups{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:500px){.budget-sort{padding:12px;gap:10px}#checklist .link-groups{grid-template-columns:1fr}#checklist>.grid>.card{height:440px}#daily .stop{padding:12px}#daily .stop-grid{grid-template-columns:60px minmax(0,1fr);gap:10px}#daily .stop-rail .time{width:60px}#daily .stop-rail .stop-thumb{width:60px;height:60px}.budget-sort-footer{flex-wrap:wrap}}
 </style>
-<script id="budget-sorting">
-let budgetSortKey='date',budgetSortDir='asc';
-function sortBudgetRows(){
- const host=el('ledgerList');if(!host)return;const rows=Array.from(host.querySelectorAll('.ledger-row'));const entries=applicableEntries();rows.forEach((row,i)=>{if(entries[i])row.dataset.entryId=entries[i].id});
- const value=e=>{const r=budgetRange(e);if(budgetSortKey==='date')return r.start||'9999-99-99';if(budgetSortKey==='category')return e.category||'';if(budgetSortKey==='status')return e.paid?'1':'0';if(budgetSortKey==='amount')return entryCents(e);return e.name||''};
- rows.sort((a,b)=>{const ea=entries.find(e=>e.id===a.dataset.entryId)||{},eb=entries.find(e=>e.id===b.dataset.entryId)||{},va=value(ea),vb=value(eb);let cmp=typeof va==='number'&&typeof vb==='number'?va-vb:String(va).localeCompare(String(vb),'zh-Hant');return budgetSortDir==='desc'?-cmp:cmp});rows.forEach(r=>host.append(r));
+<script id="review-budget-controls">
+let budgetSortKey='date',budgetSortDir='asc',budgetFilterType='all',budgetFilterValue='all';
+function budgetPassFilter(e){
+ if(budgetFilterType==='all'||budgetFilterValue==='all'||!budgetFilterValue)return true;
+ if(budgetFilterType==='category')return (e.category||'未分類')===budgetFilterValue;
+ if(budgetFilterType==='status')return budgetFilterValue==='paid'?!!e.paid:!e.paid;
+ const r=budgetRange(e),day=budgetDateNumber(budgetFilterValue);
+ return r.days>0&&day>=r.a&&day<=r.b;
 }
-const renderBudgetWithSort=renderBudget;
-renderBudget=function(){renderBudgetWithSort();sortBudgetRows()};
-window.addEventListener('load',()=>{
- const host=el('ledgerList');if(!host||el('budgetSort'))return;const bar=document.createElement('div');bar.id='budgetSort';bar.className='budget-sort';bar.innerHTML='<label for="budgetSortKey">排序</label><select id="budgetSortKey"><option value="date">日期</option><option value="category">分類</option><option value="status">款項狀態</option><option value="amount">金額</option><option value="name">款項名稱</option></select><select id="budgetSortDir" aria-label="排序方向"><option value="asc">由小到大／較早在前</option><option value="desc">由大到小／較晚在前</option></select>';
- host.before(bar);el('budgetSortKey').value=budgetSortKey;el('budgetSortDir').value=budgetSortDir;el('budgetSortKey').onchange=e=>{budgetSortKey=e.target.value;sortBudgetRows()};el('budgetSortDir').onchange=e=>{budgetSortDir=e.target.value;sortBudgetRows()};sortBudgetRows();
-});
-</script>
-<style id="checklist-sort-polish">#checklist .grid{align-items:start}#checklist .card{min-width:0}#checklist .card h2{display:flex;align-items:center;gap:10px;margin-bottom:12px}#checklist .card h2::before{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:#e1edef;color:#247a82;font-size:18px}#checklist .card:first-child h2::before{content:'!';background:#f4e3d2;color:#b45d3d}#checklist .card:last-child h2::before{content:'✓';background:#e8f0e8;color:#43836c}#checklist .check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:13px}#checklist .check{display:flex;align-items:flex-start;gap:9px;min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:#fffdf8;line-height:1.55}#checklist .check:hover{background:#f5ead4}#checklist .check input{width:20px;height:20px;flex:none;margin:1px 0 0;accent-color:#247a82}@media(max-width:650px){#checklist .check-grid{grid-template-columns:1fr}#checklist .check{min-height:44px}}
-.budget-sort{align-items:stretch;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#f5ead4}.budget-sort-group{display:flex;align-items:center;gap:8px;min-width:0}.budget-sort-group label{white-space:nowrap}.budget-sort select{min-width:132px}@media(max-width:650px){.budget-sort{flex-wrap:wrap;overflow:visible}.budget-sort-group{width:100%}.budget-sort-group select{flex:1;min-width:0}}
-</style>
-<script id="budget-filter-sort-v2">
-let budgetFilterType='all',budgetFilterValue='all';
-function budgetEntriesForSort(){return applicableEntries()}
-function budgetPassFilter(e){if(budgetFilterType==='all')return true;if(budgetFilterType==='status')return budgetFilterValue==='paid'?!!e.paid:!e.paid;if(budgetFilterType==='category')return (e.category||'')===budgetFilterValue;if(budgetFilterType==='date'){const r=budgetRange(e);return r.start===budgetFilterValue||r.end===budgetFilterValue||(r.start&&r.end&&r.start<=budgetFilterValue&&r.end>=budgetFilterValue)}return true}
+function budgetCompare(a,b){
+ const value=e=>{const r=budgetRange(e);return budgetSortKey==='amount'?entryCents(e):budgetSortKey==='days'?r.days:budgetSortKey==='date'?r.a:budgetSortKey==='category'?(e.category||'未分類'):budgetSortKey==='status'?Number(!!e.paid):(e.name||'')};
+ const x=value(a),y=value(b);
+ if(budgetSortKey==='date'){if(!Number.isFinite(x))return Number.isFinite(y)?1:0;if(!Number.isFinite(y))return -1}
+ const cmp=typeof x==='number'?x-y:String(x).localeCompare(String(y),'zh-Hant');
+ return (budgetSortDir==='desc'?-cmp:cmp)||String(a.id).localeCompare(String(b.id));
+}
 function sortBudgetRows(){
- const host=el('ledgerList');if(!host)return;const rows=Array.from(host.querySelectorAll('.ledger-row')),entries=budgetEntriesForSort();rows.forEach((row,i)=>{if(entries[i])row.dataset.entryId=entries[i].id;const visible=budgetPassFilter(entries[i]||{});row.hidden=!visible;row.style.display=visible?'':'none';row.setAttribute('aria-hidden',String(!visible))});const value=e=>{const r=budgetRange(e);if(budgetSortKey==='date')return r.start||'9999-99-99';if(budgetSortKey==='category')return e.category||'';if(budgetSortKey==='status')return e.paid?'1':'0';if(budgetSortKey==='amount')return entryCents(e);if(budgetSortKey==='days')return r.days||0;return e.name||''};rows.sort((a,b)=>{const ea=entries.find(e=>e.id===a.dataset.entryId)||{},eb=entries.find(e=>e.id===b.dataset.entryId)||{},va=value(ea),vb=value(eb);const cmp=typeof va==='number'&&typeof vb==='number'?va-vb:String(va).localeCompare(String(vb),'zh-Hant');return budgetSortDir==='desc'?-cmp:cmp});rows.forEach(r=>host.append(r));const empty=host.querySelector('.ledger-empty');if(empty)empty.hidden=entries.some(budgetPassFilter)===false;const count=el('budgetSortCount');if(count)count.textContent=rows.filter(r=>!r.hidden).length+' 筆顯示';
+ const entries=applicableEntries(),byId=new Map(entries.map(e=>[String(e.id),e])),host=el('ledgerList');
+ const rows=Array.from(host.querySelectorAll('.ledger-row'));
+ rows.forEach(row=>{const e=byId.get(row.dataset.entryId);row.hidden=!e||!budgetPassFilter(e)});
+ rows.sort((a,b)=>budgetCompare(byId.get(a.dataset.entryId),byId.get(b.dataset.entryId))).forEach(row=>host.append(row));
+ let empty=host.querySelector('.filter-empty');if(!empty){empty=document.createElement('div');empty.className='ledger-empty filter-empty';empty.textContent='沒有符合條件的帳目，請調整篩選或清除條件。';host.append(empty)}
+ const count=rows.filter(r=>!r.hidden).length;empty.hidden=count>0||entries.length===0;
+ if(el('budgetSortCount'))el('budgetSortCount').textContent='顯示 '+count+' / '+entries.length+' 筆 · 篩選不影響總預算';
 }
 function rebuildBudgetSortOptions(){
- const bar=el('budgetSort');if(!bar)return;bar.innerHTML='<div class="budget-sort-group"><label for="budgetFilterType">篩選條件</label><select id="budgetFilterType"><option value="all">全部帳目</option><option value="date">指定日期</option><option value="category">指定分類</option><option value="status">付款狀態</option></select><select id="budgetFilterValue" aria-label="篩選內容"></select></div><div class="budget-sort-group"><label for="budgetSortKey">排序依</label><select id="budgetSortKey"><option value="date">日期</option><option value="days">涵蓋天數</option><option value="amount">金額</option><option value="category">分類</option><option value="status">付款狀態</option><option value="name">款項名稱</option></select><select id="budgetSortDir" aria-label="升冪或降冪"><option value="asc">升冪／早、小在前</option><option value="desc">降冪／晚、大在前</option></select></div><span id="budgetSortCount" class="budget-sort-count" role="status"></span>';
- const type=el('budgetFilterType'),val=el('budgetFilterValue');function updateValues(){const es=applicableEntries(),opts=type.value==='date'?[...new Set(es.flatMap(e=>{const r=budgetRange(e);return[r.start,r.end].filter(Boolean)}))].sort():type.value==='category'?[...new Set(es.map(e=>e.category).filter(Boolean))].sort():type.value==='status'?[['estimate','預估'],['paid','已付款']]:[];val.innerHTML='<option value="all">'+(type.value==='all'?'全部':'全部')+'</option>'+opts.map(o=>Array.isArray(o)?'<option value="'+o[0]+'">'+o[1]+'</option>':'<option value="'+o+'">'+o+'</option>').join('');val.hidden=type.value==='all';budgetFilterValue='all';sortBudgetRows()};type.value=budgetFilterType;type.onchange=()=>{budgetFilterType=type.value;updateValues()};val.onchange=()=>{budgetFilterValue=val.value;sortBudgetRows()};el('budgetSortKey').value=budgetSortKey;el('budgetSortDir').value=budgetSortDir;el('budgetSortKey').onchange=()=>{budgetSortKey=el('budgetSortKey').value;sortBudgetRows()};el('budgetSortDir').onchange=()=>{budgetSortDir=el('budgetSortDir').value;sortBudgetRows()};updateValues();
+ const host=el('ledgerList');let bar=el('budgetSort');
+ if(!bar){bar=document.createElement('div');bar.id='budgetSort';bar.className='budget-sort';host.before(bar);
+ bar.innerHTML='<label>篩選條件<select id="budgetFilterType"><option value="all">全部帳目</option><option value="date">日期</option><option value="category">分類</option><option value="status">付款狀態</option></select></label><label id="budgetValueLabel">篩選內容<span id="budgetValueHost"></span></label><label>排序依據<select id="budgetSortKey"><option value="date">分攤日期</option><option value="days">涵蓋天數</option><option value="amount">折合台幣金額</option><option value="name">款項名稱</option><option value="category">分類</option><option value="status">付款狀態</option></select></label><label>排序方向<select id="budgetSortDir"><option value="asc">升冪 · 早／小在前</option><option value="desc">降冪 · 晚／大在前</option></select></label><div class="budget-sort-footer"><span id="budgetSortCount" role="status"></span><button class="btn" type="button" id="budgetClearFilter">清除篩選</button></div>';
+ el('budgetFilterType').onchange=e=>{budgetFilterType=e.target.value;budgetFilterValue='all';rebuildBudgetSortOptions();sortBudgetRows()};
+ el('budgetSortKey').onchange=e=>{budgetSortKey=e.target.value;sortBudgetRows()};
+ el('budgetSortDir').onchange=e=>{budgetSortDir=e.target.value;sortBudgetRows()};
+ el('budgetClearFilter').onclick=()=>{budgetFilterType='all';budgetFilterValue='all';rebuildBudgetSortOptions();sortBudgetRows()};
+ }
+ el('budgetFilterType').value=budgetFilterType;el('budgetSortKey').value=budgetSortKey;el('budgetSortDir').value=budgetSortDir;
+ const holder=el('budgetValueHost');holder.replaceChildren();const field=document.createElement(budgetFilterType==='date'?'input':'select');field.id='budgetFilterValue';field.setAttribute('aria-label','篩選內容');
+ if(budgetFilterType==='date'){field.type='date';field.value=budgetFilterValue==='all'?'':budgetFilterValue}
+ else{const options=budgetFilterType==='category'?[...new Set(applicableEntries().map(e=>e.category||'未分類'))].sort().map(v=>[v,v]):budgetFilterType==='status'?[['estimate','預估'],['paid','已付款']]:[];
+ field.add(new Option('全部','all'));options.forEach(([v,t])=>field.add(new Option(t,v)));if(![...field.options].some(o=>o.value===budgetFilterValue))budgetFilterValue='all';field.value=budgetFilterValue;field.disabled=budgetFilterType==='all'}
+ field.onchange=()=>{budgetFilterValue=field.value||'all';sortBudgetRows()};holder.append(field);
 }
-const renderChecklistPolished=renderChecklist;renderChecklist=function(){renderChecklistPolished();const cards=document.querySelectorAll('#checklist .card');cards.forEach((card,i)=>{let hint=card.querySelector('.check-hint');if(!hint){hint=document.createElement('p');hint.className='check-hint muted';hint.textContent=i?'勾選已準備好的物品，完成狀態會自動保存。':'勾選後會自動保存；點擊項目可快速確認。';card.querySelector('.progress').after(hint)}})};
-window.addEventListener('load',()=>{rebuildBudgetSortOptions();renderChecklist()});
-</script>
-<style id="travel-links-layout">#checklist .useful-links{margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}#checklist .useful-links h3{margin:0 0 12px;font-size:18px}#checklist .link-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.link-group{padding:12px;border:1px solid var(--line);border-radius:12px;background:#fffdf8}.link-group b{display:block;margin-bottom:7px}.link-group a{display:block;padding:8px 0;color:#176d7b;text-decoration:underline;font-size:13px;line-height:1.45}.link-group a:focus-visible{outline:3px solid #d6a54d;outline-offset:2px}@media(max-width:650px){#checklist .link-groups{grid-template-columns:1fr}}
-#daily .stop-grid{grid-template-columns:64px 86px minmax(0,1fr) 86px;gap:14px;align-items:start}#daily .stop-grid>.time{width:64px;box-sizing:border-box;white-space:nowrap;text-align:center;font-variant-numeric:tabular-nums}#daily .stop-grid>.stop-thumb{width:86px;height:74px;aspect-ratio:86/74;box-sizing:border-box;flex:none}#daily .stop-main{min-width:0;overflow-wrap:anywhere}#daily .stop-main h4{margin:0;line-height:1.45;overflow-wrap:anywhere}#daily .stop-actions{min-width:0}#daily .stop-actions .btn{min-width:0;white-space:normal;overflow-wrap:anywhere}@media(max-width:900px){#daily .stop-grid{grid-template-columns:60px 74px minmax(0,1fr);gap:11px}#daily .stop-grid>.time{width:60px}#daily .stop-grid>.stop-thumb{width:74px;height:68px}#daily .stop-actions{grid-column:3;display:flex;flex-wrap:wrap;gap:7px}#daily .stop-actions .btn{flex:1 1 74px}}@media(max-width:650px){#daily .stop-grid{grid-template-columns:64px minmax(0,1fr);gap:9px}#daily .stop-grid>.time{grid-column:1;grid-row:1;width:64px;padding:9px 4px}#daily .stop-grid>.stop-thumb{grid-column:1;grid-row:2;width:64px;height:64px}#daily .stop-main{grid-column:2;grid-row:1/3}#daily .stop-actions{grid-column:2;grid-row:3;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}#daily .stop-actions .btn{width:100%;min-width:0;padding:8px 5px}}
-</style>
-<script id="travel-links-and-layout">
-const checklistWithLinks=renderChecklist;
-renderChecklist=function(){checklistWithLinks();const section=el('checklist'),existing=section.querySelector('.useful-links');if(existing)existing.remove();const links=document.createElement('div');links.className='card useful-links';links.innerHTML='<h3>旅途中常用網站</h3><p class="muted">出發前先收藏；網站內容與營運時間可能變動，請以官方最新公告為準。</p><div class="link-groups"><div class="link-group"><b>巴士／長途交通</b><a target="_blank" rel="noopener" href="https://www.metroturizm.com.tr/">Metro Turizm 巴士</a><a target="_blank" rel="noopener" href="https://www.kamilkoc.com.tr/">Kamil Koç 巴士</a><a target="_blank" rel="noopener" href="https://www.obilet.com/">Obilet 交通比價</a></div><div class="link-group"><b>租車／道路</b><a target="_blank" rel="noopener" href="https://www.discovercars.com/">Discover Cars 比價</a><a target="_blank" rel="noopener" href="https://www.kgm.gov.tr/">土耳其公路總局 KGM</a><a target="_blank" rel="noopener" href="https://www.google.com/maps">Google Maps 導航</a></div><div class="link-group"><b>住宿／景點票券</b><a target="_blank" rel="noopener" href="https://www.booking.com/">Booking.com</a><a target="_blank" rel="noopener" href="https://muze.gov.tr/">土耳其文化與旅遊部票券</a><a target="_blank" rel="noopener" href="https://www.babadagteleferik.com/">Babadağ 纜車官網</a></div><div class="link-group"><b>緊急／外交</b><a target="_blank" rel="noopener" href="https://www.boca.gov.tw/">外交部領事事務局</a><a target="_blank" rel="noopener" href="https://www.roc-taiwan.org/tr/">駐土耳其代表處</a><a target="_blank" rel="noopener" href="https://www.mfa.gov.tr/">土耳其外交部</a></div></div>';
- section.querySelector('.grid').after(links);
+const reviewedBudgetBase=renderBudget;
+renderBudget=function(){
+ reviewedBudgetBase();
+ // Bind once while freshly rendered in source order; never rebind after sorting.
+ const rows=el('ledgerList').querySelectorAll('.ledger-row');
+ applicableEntries().forEach((entry,i)=>{if(rows[i])rows[i].dataset.entryId=String(entry.id)});
+ rebuildBudgetSortOptions();sortBudgetRows();
 };
-window.addEventListener('load',()=>renderChecklist());
+const reviewedDayBase=renderDay;
+renderDay=function(){reviewedDayBase();el('stopList').querySelectorAll('.stop-grid').forEach(grid=>{
+ if(grid.querySelector('.stop-rail'))return;const rail=document.createElement('div');rail.className='stop-rail';
+ const time=grid.querySelector(':scope > .time'),thumb=grid.querySelector(':scope > .stop-thumb');
+ if(time)rail.append(time);if(thumb)rail.append(thumb);grid.prepend(rail);
+})};
 </script>
-<style id="final-layout-polish">#checklist .grid{align-items:stretch}#checklist .grid>.card{display:flex;flex-direction:column;min-height:520px}#checklist .check-grid{flex:1;min-height:0;max-height:430px;overflow-y:auto;overflow-x:hidden;padding:2px 7px 6px 0;scrollbar-gutter:stable}#checklist .useful-links{max-height:520px;overflow:auto;scrollbar-gutter:stable}#checklist .useful-links .link-groups{padding-right:4px}.budget-help-rail{display:flex;justify-content:flex-end;margin:10px 0}.budget-help-rail details{width:100%;border:1px solid var(--line);border-radius:12px;background:#f5ead4;overflow:hidden}.budget-help-rail summary{cursor:pointer;min-height:44px;padding:11px 14px;display:flex;align-items:center;gap:8px;font-weight:700;list-style:none}.budget-help-rail summary::-webkit-details-marker{display:none}.budget-help-rail summary::before{content:'ⓘ';font-size:18px;color:#247a82}.budget-help-content{padding:0 14px 13px;line-height:1.7;font-size:13px}.budget-help-content p{margin:8px 0}.budget-sort{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:center}.budget-sort-group{min-width:0}.budget-sort-count{font-size:12px;color:var(--muted);white-space:nowrap}@media(max-width:650px){#checklist .grid>.card{min-height:0}.budget-sort{grid-template-columns:1fr!important;gap:8px}.budget-sort-group{width:100%}.budget-sort-count{justify-self:start}}
-</style>
-<script id="final-info-layout">
+<script id="review-resources">
+const travelResourceGroups=[
+ ['交通｜巴士與航班',[['Metro Turizm','https://www.metroturizm.com.tr/'],['Kamil Koç 巴士','https://www.kamilkoc.com.tr/'],['Obilet 交通比價','https://www.obilet.com/'],['土耳其航空','https://www.turkishairlines.com/'],['Pegasus 飛馬航空','https://www.flypgs.com/en']]],
+ ['交通｜租車與市區',[['Avis 土耳其租車','https://www.avis.com.tr/'],['Enterprise 租車','https://www.enterprise.com.tr/'],['公路總局 KGM','https://www.kgm.gov.tr/'],['伊斯坦堡地鐵','https://www.metro.istanbul/'],['Şehir Hatları 渡輪','https://sehirhatlari.istanbul/'],['Google Maps 導航','https://www.google.com/maps']]],
+ ['食衣｜補給與採買',[['Migros 超市','https://www.migros.com.tr/'],['Karaköy Güllüoğlu 甜點','https://www.karakoygulluoglu.com/'],['Decathlon 戶外用品','https://www.decathlon.com.tr/'],['LC Waikiki 衣物','https://www.lcw.com/']]],
+ ['住宿｜平台入口',[['Booking.com','https://www.booking.com/'],['Airbnb','https://www.airbnb.com/']]],
+ ['景點｜官方資訊',[['文化與旅遊部博物館','https://muze.gov.tr/'],['Babadağ 纜車','https://www.babadagteleferik.com/'],['國家宮殿總署','https://www.millisaraylar.gov.tr/']]],
+ ['緊急｜外交與協助',[['外交部領事事務局','https://www.boca.gov.tw/'],['駐土耳其代表處','https://www.roc-taiwan.org/tr/'],['土耳其外交部','https://www.mfa.gov.tr/']]]
+];
+const reviewedChecklistBase=renderChecklist;
+renderChecklist=function(){const positions=['notices','packing'].map(id=>el(id).scrollTop);reviewedChecklistBase();
+ ['notices','packing'].forEach((id,i)=>{const host=el(id);host.scrollTop=positions[i];host.tabIndex=0;host.setAttribute('role','region');host.setAttribute('aria-label',i?'行李清單，可向下捲動':'注意事項，可向下捲動')});
+ if(el('travelResources'))return;const box=document.createElement('div');box.id='travelResources';box.className='card useful-links';
+ box.innerHTML='<h2>旅途中常用網站</h2><p class="muted">依用途分類，向下滑動看更多。以下為網站入口，費用、服務範圍及訂房可用性請直接向業者確認。</p><div class="link-groups" role="region" tabindex="0" aria-label="旅行網站，可向下捲動"></div>';
+ const groups=box.querySelector('.link-groups');travelResourceGroups.forEach(([title,links])=>{const group=document.createElement('section');group.className='link-group';const h=document.createElement('h3');h.textContent=title;group.append(h);links.forEach(([name,url])=>{const a=document.createElement('a');a.textContent=name;a.href=url;a.target='_blank';a.rel='noopener noreferrer';group.append(a)});groups.append(group)});el('checklist').append(box);
+};
 window.addEventListener('load',()=>{
- const budget=el('budget');if(budget&&!el('budgetHelpRail')){const old=Array.from(budget.querySelectorAll('.budget-info'));if(old.length){const rail=document.createElement('div');rail.id='budgetHelpRail';rail.className='budget-help-rail';rail.innerHTML='<details><summary>預算說明與計算方式</summary><div class="budget-help-content"></div></details>';const content=rail.querySelector('.budget-help-content');old.forEach(d=>{const body=d.querySelector('div');if(body)Array.from(body.childNodes).forEach(n=>content.append(n.cloneNode(true)));d.remove()});const sort=el('budgetSort');(sort||budget.firstElementChild)?.before(rail)}}
- const help=el('budgetHelpRail');if(help)help.querySelector('summary').setAttribute('aria-label','展開預算說明');
- const notes=el('notices'),packing=el('packing');[notes,packing].forEach(host=>{if(host)host.setAttribute('aria-label',host.id==='notices'?'出發前注意事項清單':'行李清單')});
+ const budget=el('budget'),old=Array.from(budget.querySelectorAll('.budget-info'));
+ if(old.length&&!el('budgetHelpRail')){
+ const rail=document.createElement('div');rail.id='budgetHelpRail';rail.className='budget-help-rail';rail.innerHTML='<details><summary aria-label="預算說明與計算方式" title="預算說明與計算方式">ⓘ</summary><div class="budget-help-content"><h3>預算說明與計算方式</h3><p>行程與預算分開管理。跨日費用按分攤起末日（含末日）平均分配，再依旅伴分帳顯示每日與累積花費。篩選只改變帳目清單，不影響首頁總額或轉帳結算。</p></div></details>';
+ const content=rail.querySelector('.budget-help-content');old.forEach(d=>{const body=d.querySelector('div');if(body)while(body.firstChild)content.append(body.firstChild);d.remove()});
+ el('budgetSort').before(rail);
+ }
+ renderAll();
 });
 </script>
 </body>
