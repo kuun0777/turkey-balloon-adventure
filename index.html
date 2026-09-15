@@ -2256,6 +2256,68 @@ window.addEventListener('load',()=>{
 });
 window.addEventListener('resize',queuePreviewFill);
 </script>
+<style id="personal-layout">
+.page-frame:has(>#budget.active),.page-frame:has(>#checklist.active),.page-frame:has(>#bookings.active),.page-frame:has(>#settings.active){height:auto;min-height:0}
+#budget #ledgerList{height:auto;max-height:650px;min-height:0}
+#bookings #bookingGrid{height:auto;max-height:620px}
+#checklist>.grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+#checklist>.grid>.card{height:auto;max-height:600px;min-height:0}
+#checklist .check-grid{max-height:450px;flex:initial}
+.person-view-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;margin-bottom:16px;background:#e6eee9;border-radius:12px}
+.person-view-bar label{display:flex;align-items:center;gap:10px;font-size:14px}.person-view-bar select{min-height:44px;min-width:130px}
+.person-view-bar small{font-size:12px;color:var(--muted)}
+.item-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.item-heading h2{margin:0}.item-heading button{flex-shrink:0;min-height:44px}
+.owned-item{display:flex;gap:8px;align-items:start}.owned-item .check{flex:1;min-width:0}.owned-item>.btn{min-height:44px;padding:8px;flex-shrink:0}
+.item-owner{display:block;font-size:12px;color:var(--muted);margin-top:5px}
+#personalBudgetSummary{padding:12px;background:#e6eee9;border-radius:10px;font-size:14px;line-height:1.7;margin:10px 0}
+#ownedItemForm label{display:flex;flex-direction:column;gap:6px;margin:12px 0}#ownedItemForm input,#ownedItemForm select,#ownedItemForm textarea{font-size:16px;min-height:44px}
+@media(max-width:650px){#checklist>.grid{grid-template-columns:1fr}.item-heading h2{font-size:21px}#budget #ledgerList{max-height:65svh}.person-view-bar{padding:12px}.person-view-bar label{width:100%;justify-content:space-between}}
+</style>
+<dialog id="ownedItemDialog" aria-labelledby="ownedItemTitle"><form id="ownedItemForm">
+<h2 id="ownedItemTitle">新增項目</h2>
+<label>項目名稱<input name="itemName" required maxlength="160"></label>
+<label>簡短說明<textarea name="itemDescription" rows="2" maxlength="600"></textarea></label>
+<label>適用旅伴<select name="itemOwner"></select></label>
+<p class="muted">全團共用會顯示在每位旅伴的清單；個人項目只在該旅伴或「全團」檢視顯示。這是分類顯示，並非隱私權限。</p>
+<p id="ownedItemError" role="alert"></p>
+<div class="dialog-actions"><button type="button" class="btn" onclick="document.getElementById('ownedItemDialog').close()">取消</button><button class="btn primary" type="submit">儲存</button></div>
+</form></dialog>
+<script id="personal-items">
+function travelerStorageKey(){return 'turkey_viewer_v1_'+(typeof cloud!=='undefined'&&cloud.tripId||'local')}
+selectedTraveler=function(){ensureLedger();let id='all';try{id=localStorage.getItem(travelerStorageKey())||data.selectedTraveler||'all'}catch{}return id==='all'||data.ledger.people.some(p=>p.id===id)?id:'all'};
+setSelectedTraveler=function(id){try{localStorage.setItem(travelerStorageKey(),id)}catch{}renderAll()};
+function itemMeta(kind,key){return data.itemOwnership?.[kind+':'+key]||{owner:'all'}}
+function itemVisible(kind,key,id=selectedTraveler()){const owner=itemMeta(kind,key).owner||'all';return id==='all'||owner==='all'||owner===id}
+function ownerLabel(owner){return owner==='all'?'全團共用':data.ledger.people.find(p=>p.id===owner)?.name||'已移除旅伴'}
+function budgetVisibleTo(e,id=selectedTraveler()){return id==='all'||(e.members||[]).includes(id)||e.payer===id}
+const personalFilterBase=budgetPassFilter;budgetPassFilter=function(e){return budgetVisibleTo(e)&&personalFilterBase(e)};
+const personalSortBase=sortBudgetRows;
+sortBudgetRows=function(){personalSortBase();const id=selectedTraveler(),entries=applicableEntries(),visible=entries.filter(e=>budgetVisibleTo(e));const count=el('budgetSortCount');if(count)count.textContent='顯示 '+entries.filter(budgetPassFilter).length+' / '+visible.length+' 筆相關帳目 · 不影響全團總預算';
+ let summary=el('personalBudgetSummary');if(!summary){summary=document.createElement('div');summary.id='personalBudgetSummary';el('budgetSort').before(summary)}
+ summary.hidden=id==='all';if(id!=='all'){const total=entries.reduce((n,e)=>n+(sharesCents(e)[id]||0),0),paid=entries.filter(e=>e.paid&&e.payer===id).reduce((n,e)=>n+entryCents(e),0);summary.textContent=ownerLabel(id)+'｜個人預算分攤 '+nt(total)+' · 已代付 '+nt(paid)+'。下方帳目為你參與分帳或代付的項目，金額仍顯示整筆費用。'}
+};
+function renderPersonBars(){['budget','bookings','checklist'].forEach(id=>{let bar=el(id).querySelector('.person-view-bar');if(!bar){bar=document.createElement('div');bar.className='person-view-bar';bar.innerHTML='<label>目前查看<select aria-label="目前查看旅伴"></select></label><small>本裝置獨立記住選擇</small>';el(id).prepend(bar);bar.querySelector('select').onchange=e=>setSelectedTraveler(e.target.value)}
+ const select=bar.querySelector('select');select.replaceChildren(new Option('全團','all'));data.ledger.people.forEach(p=>select.add(new Option(p.name,p.id)));select.value=selectedTraveler()})}
+function ownedChecked(kind,key){const id=selectedTraveler(),personal=data.personalChecks?.[id]?.[kind+':'+key];return id!=='all'&&personal!==undefined?personal:!!data.checked?.[kind+':'+key]}
+function setOwnedChecked(kind,key,value){const id=selectedTraveler();if(id==='all'){data.checked=data.checked||{};data.checked[kind+':'+key]=value}else{data.personalChecks=data.personalChecks||{};data.personalChecks[id]=data.personalChecks[id]||{};data.personalChecks[id][kind+':'+key]=value}save();renderChecklist()}
+function itemArray(kind){return kind==='booking'?(data.bookings||seed.bookings):kind==='notice'?data.notices:data.packing}
+function editOwnedItem(kind,key){
+ const form=el('ownedItemForm'),row=key?itemArray(kind).find(r=>r[0]===key):null;form.reset();el('ownedItemTitle').textContent=(row?'編輯':'新增')+({booking:'預訂項目',notice:'注意事項',packing:'行李項目'}[kind]);
+ form.elements.itemName.value=row?.[1]||'';form.elements.itemDescription.value=kind==='booking'?row?.[2]||'':itemMeta(kind,key).description||'';
+ const select=form.elements.itemOwner;select.replaceChildren(new Option('全團共用','all'));data.ledger.people.forEach(p=>select.add(new Option(p.name,p.id)));select.value=row?(itemMeta(kind,key).owner||'all'):selectedTraveler();if(!select.value)select.value='all';
+ el('ownedItemError').textContent='';form.onsubmit=e=>{e.preventDefault();const name=form.elements.itemName.value.trim();if(!name){el('ownedItemError').textContent='請填寫項目名稱';return}const description=form.elements.itemDescription.value.trim(),owner=select.value,newKey=key||makeUuid();if(kind==='booking'&&!data.bookings)data.bookings=structuredClone(seed.bookings);const list=itemArray(kind);if(row){row[1]=name;if(kind==='booking')row[2]=description}else list.push(kind==='booking'?[newKey,name,description]:[newKey,name]);data.itemOwnership=data.itemOwnership||{};data.itemOwnership[kind+':'+newKey]={owner,description};save();renderAll();el('ownedItemDialog').close()};el('ownedItemDialog').showModal();
+}
+function addItemHeader(host,kind){const card=host.closest('.card');if(card.querySelector('.item-heading'))return;const h=card.querySelector('h2'),header=document.createElement('div');header.className='item-heading';h.before(header);header.append(h);const add=document.createElement('button');add.className='btn';add.textContent='＋ 新增';add.onclick=()=>editOwnedItem(kind);header.append(add)}
+const ownedChecklistBase=renderChecklist;
+renderChecklist=function(){ownedChecklistBase();[['notices','notice','noticeProgress'],['packing','packing','packingProgress']].forEach(([id,kind,progress])=>{
+ const host=el(id),scroll=host.scrollTop,rows=itemArray(kind).filter(r=>itemVisible(kind,r[0]));host.replaceChildren();rows.forEach(([key,text])=>{const row=document.createElement('div');row.className='owned-item';const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.checked=ownedChecked(kind,key);input.onchange=()=>setOwnedChecked(kind,key,input.checked);const span=document.createElement('span');span.textContent=text;const meta=itemMeta(kind,key),small=document.createElement('small');small.className='item-owner';small.textContent=ownerLabel(meta.owner||'all')+(meta.description?' · '+meta.description:'');span.append(small);label.append(input,span);const edit=document.createElement('button');edit.className='btn';edit.textContent='編輯';edit.onclick=()=>editOwnedItem(kind,key);row.append(label,edit);host.append(row)});if(!rows.length){const p=document.createElement('p');p.className='muted';p.textContent='尚無符合這位旅伴的項目，點「新增」建立。';host.append(p)}
+ el(progress).style.width=(rows.length?rows.filter(r=>ownedChecked(kind,r[0])).length/rows.length*100:0)+'%';host.scrollTop=scroll;addItemHeader(host,kind)});renderPersonBars()};
+renderBookings=function(){const rows=itemArray('booking').filter(r=>itemVisible('booking',r[0])),host=el('bookingGrid');host.replaceChildren();rows.forEach(([key,name,description])=>{const card=document.createElement('div');card.className='booking';const b=document.createElement('b');b.textContent=name;const detail=document.createElement('p');detail.className='muted';detail.textContent=description||'';const owner=document.createElement('small');owner.className='item-owner';owner.textContent=ownerLabel(itemMeta('booking',key).owner||'all');const actions=document.createElement('div');actions.className='actions';const done=document.createElement('button');done.className='btn';done.textContent=data.bookingState?.[key]==='done'?'✓ 已完成':'標記完成';done.onclick=()=>toggleBooking(key);const edit=document.createElement('button');edit.className='btn';edit.textContent='編輯';edit.onclick=()=>editOwnedItem('booking',key);actions.append(done,edit);card.append(b,detail,owner,actions);host.append(card)});if(!rows.length)host.textContent='尚無符合這位旅伴的預訂項目。';el('bookingProgress').style.width=(rows.length?rows.filter(r=>data.bookingState?.[r[0]]==='done').length/rows.length*100:0)+'%';addItemHeader(host,'booking');renderPersonBars()};
+const personalBudgetBase=renderBudget;renderBudget=function(){personalBudgetBase();renderPersonBars()};
+// Let content determine height on the lighter tabs; do not stretch sparse lists.
+const naturalFillBase=fitPreviewContent;fitPreviewContent=function(){const id=document.querySelector('.section.active')?.id;if(id==='daily')naturalFillBase()};
+window.addEventListener('load',()=>renderAll());
+</script>
 </body>
 </html>
 
