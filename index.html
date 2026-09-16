@@ -650,7 +650,7 @@ document.getElementById("fxEur").onchange=e=>{data.fxEur=Number(e.target.value);
 document.getElementById("exportBtn").onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="turkey-trip-perfect-backup.json";a.click();URL.revokeObjectURL(a.href)};
 document.getElementById("importFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{data=upgradeItinerary(JSON.parse(r.result));save();renderAll();alert("匯入完成")}catch{alert("JSON 格式錯誤")}};r.readAsText(f)};
 document.getElementById("resetBtn").onclick=()=>{if(confirm("會清除目前修改，恢復預設行程。確定？")){data=structuredClone(seed);save();renderAll()}};
-window.addEventListener("load",()=>{initMaps();renderAll()});
+document.addEventListener('DOMContentLoaded',()=>{initMaps();renderAll()});
 </script>
 
 <dialog id="expenseDialog"></dialog>
@@ -960,7 +960,7 @@ function renderCloudPanel(){
  const box=el('cloudPanel');if(!box)return;el('cloudUrl').value=cloud.url;el('cloudKey').value=cloud.key;el('cloudTripId').value=cloud.tripId;el('shareLink').value=cloud.tripId?shareUrl():'';setCloudStatus(cloudReady()?'雲端同步已設定，正在連線…':'尚未連接 Supabase',cloudReady()?'syncing':'')
 }
 const settings=document.querySelector('#settings .grid');const cloudCard=document.createElement('div');cloudCard.id='cloudPanel';cloudCard.className='card cloud-card';cloudCard.innerHTML='<h2>群組雲端同步</h2><p class="muted">GitHub Pages 提供網站，Supabase 保存全團共用資料。請使用 anon public key，不能使用 service_role key。</p><div class="cloud-grid"><label>Supabase Project URL<input id="cloudUrl" placeholder="https://xxxx.supabase.co"></label><label>Anon public key<input id="cloudKey" type="password" autocomplete="off"></label><label class="wide">旅程 ID<input id="cloudTripId" placeholder="留空會自動建立 UUID"></label></div><div id="cloudStatus" class="cloud-status"><i class="cloud-dot"></i><span>尚未設定</span></div><div class="actions"><button class="btn primary" onclick="saveCloudSettings()">儲存並連線</button><button class="btn" onclick="createSharedTrip()">建立新的共享旅程</button><button class="btn" onclick="cloudPull()">立即同步</button></div><label style="margin-top:14px">群組共享網址<div class="share-row"><input id="shareLink" readonly><button class="btn" type="button" onclick="copyShare()">複製網址</button></div></label>';settings.after(cloudCard);
-window.addEventListener('load',()=>{cloud=queryCloudConfig();persistCloud();renderCloudPanel();if(cloudReady()){setTimeout(async()=>{clearTimeout(cloudTimer);await cloudPull();if(cloudLastRevision>0){addTripEstimates();renderAll()}cloudPoll=setInterval(()=>cloudPull(false),15000)},0)}});
+document.addEventListener('DOMContentLoaded',()=>{cloud=queryCloudConfig();persistCloud();renderCloudPanel();if(cloudReady()){setTimeout(async()=>{clearTimeout(cloudTimer);await cloudPull();if(cloudLastRevision>0){addTripEstimates();renderAll()}cloudPoll=setInterval(()=>cloudPull(false),15000)},0)}});
 </script>
 <style>
 .station-pin{background:#176d7b;border:2px solid white;border-radius:50%;color:white;text-align:center;font:bold 12px/28px system-ui;box-shadow:0 2px 6px #0004}
@@ -1060,7 +1060,7 @@ renderDay=function(){
 };
 const priorStationHome=renderHome;
 renderHome=function(){priorStationHome();el('timeline').querySelectorAll('.compact-route').forEach((node,i)=>{const d=plan()[i];node.textContent=compactPlaces(d).map(name=>sightInfo({name}).name).join('・')})};
-window.addEventListener('load',()=>{renderHome();renderDay()});
+document.addEventListener('DOMContentLoaded',()=>{renderHome();renderDay()});
 </script>
 <style id="local-typography-polish">
 /* Local preview: the existing palette and layout remain the visual foundation. */
@@ -1340,7 +1340,7 @@ showTab=function(id){
  });
  if(id==='daily')requestAnimationFrame(()=>mapDay?.invalidateSize());
 };
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  decorateDailyWorkspace();
  document.querySelector('.nav button.active')?.setAttribute('aria-current','page');
  el('prevDay').setAttribute('aria-label','前一天');el('nextDay').setAttribute('aria-label','後一天');
@@ -1414,7 +1414,7 @@ function setupDailyFx(){
 }
 const budgetWithDailyFx=renderBudget;
 renderBudget=function(){budgetWithDailyFx();drawDailyFx()};
-window.addEventListener('load',setupDailyFx);
+document.addEventListener('DOMContentLoaded',setupDailyFx);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshDailyFx()});
 window.addEventListener('online',()=>refreshDailyFx());
 setInterval(()=>{if(!document.hidden)refreshDailyFx()},60000);
@@ -1514,7 +1514,7 @@ const budgetWithEstimateNotes=renderBudget;
 renderBudget=function(){budgetWithEstimateNotes();applicableEntries().forEach((e,i)=>{const row=el('ledgerList').children[i];if(!row)return;if(e.estimate||e.lockedRate){const note=document.createElement('small');note.textContent=e.estimate||(e.paid?'付款匯率已鎖定：'+e.lockedRate:'');row.firstElementChild.append(note)}})};
 const helperDayRender=renderDay;
 renderDay=function(){helperDayRender();renderTravelHelpers()};
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  const tickets=document.createElement('div');tickets.className='card';tickets.style.marginTop='16px';tickets.innerHTML='<div class="ledger-head"><h2>訂房／車票收納</h2><button class="btn" onclick="editTicket()">新增資料</button></div><div id="ticketRows"></div>';el('bookings').append(tickets);
  const dailyTickets=document.createElement('details');dailyTickets.className='travel-helper';dailyTickets.innerHTML='<summary>當日住宿與票券</summary><div id="dailyTicketRows"></div><button class="btn" onclick="editTicket()">新增當日資料</button>';el('dailyWorkspace').before(dailyTickets);
  // Existing paid items retain the currently used rate before future rate changes.
@@ -1644,7 +1644,7 @@ editExpense=function(id){
  rate.addEventListener('input',()=>{note.textContent='手動指定 '+input.value+' 的共用匯率；儲存後更新同日同幣別帳目，其他日期不變。'});
  resolve();
 };
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  const list=el('ledgerList');list.tabIndex=0;list.setAttribute('role','region');list.setAttribute('aria-label','支出清單，可上下捲動');
  const hint=document.createElement('p');hint.className='budget-scroll-hint';hint.textContent='支出清單 · 在此區上下滑動查看帳目';list.before(hint);
  const note=document.createElement('div');note.className='shift-time-note';note.innerHTML='<div id="shiftTimeSummary">修改時間後，後續站點會依時間差一起順延。</div><div id="shiftTimeError" role="alert"></div>';el('stopForm').append(note);
@@ -1696,7 +1696,7 @@ renderHome=function(){
  legend.innerHTML=plan().map((d,i)=>'<span><i style="background:'+routeDayColors[i%routeDayColors.length]+'"></i>D'+(i+1)+' · '+esc(d.date)+'</span>').join('')+'<small>標記「天數.站別」；不同顏色為每日路線，灰色虛線為跨日銜接。同地點站點可能重疊，可放大點選。</small>';
  scheduleFullMapFit();
 };
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  const cta=document.querySelector('.hero-cta');cta.replaceChildren();
  const box=document.createElement('div');box.id='departureCountdown';box.className='departure-countdown';cta.append(box);
  updateDepartureCountdown();renderHome();
@@ -1735,7 +1735,7 @@ function prepareRoadbookPrint(all){
  window.print();
 }
 window.addEventListener('afterprint',()=>document.body.classList.remove('print-roadbook'));
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  const btn=Array.from(document.querySelectorAll('button')).find(b=>b.getAttribute('onclick')==='window.print()');
  if(btn){btn.textContent='匯出當日行程 PDF';btn.removeAttribute('onclick');btn.addEventListener('click',()=>prepareRoadbookPrint(false));
  const all=document.createElement('button');all.className='btn';all.textContent='匯出完整行程 PDF';all.onclick=()=>prepareRoadbookPrint(true);el('overviewMap').before(all)}
@@ -1779,7 +1779,7 @@ window.addEventListener('load',()=>{
 @media print{.overview-map-actions{display:none!important}}
 </style>
 <script>
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  const rows=el('dailyTicketRows'),ticketCard=rows?.closest('details');
  if(ticketCard){
   ticketCard.id='dailyTicketCard';
@@ -1864,7 +1864,7 @@ const drawWithStay=drawMap;
 drawMap=function(map,layers,stops){drawWithStay(map,layers,stops);if(map!==mapDay||map.fallbackId||typeof L==='undefined')return;const hotels=[...new Map([...hotelsForDay(currentDay,'start'),...hotelsForDay(currentDay,'end')].map(t=>[t.id,t])).values()];hotels.filter(t=>t.lat&&t.lng).forEach(t=>{const marker=L.marker([+t.lat,+t.lng],{icon:L.divIcon({className:'hotel-pin',html:'H',iconSize:[32,32]})}).bindPopup(esc(t.title));marker.addTo(map);layers.push(marker)})};
 const fitWithStay=fitFullTripMap;
 fitFullTripMap=function(map){fitWithStay(map);if(map!==mapDay||map?.fallbackId||typeof L==='undefined'||!map.getContainer().clientWidth)return;const pts=[...plan()[currentDay].stops,...hotelsForDay(currentDay,'start'),...hotelsForDay(currentDay,'end')].filter(s=>s.lat&&s.lng).map(s=>[+s.lat,+s.lng]);if(pts.length)map.fitBounds(pts,{padding:[28,28],maxZoom:12,animate:false})};
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  const form=el('stopForm'),extras=document.createElement('div');extras.className='wide formgrid';extras.innerHTML='<label>行程日期<input id="fDate" type="date" min="2026-09-18" max="2026-09-27" required></label><label>費用類型<select id="fExpenseCategory">'+expenseCategories.map(c=>'<option>'+c+'</option>').join('')+'</select></label><label>台幣費用 TWD<input id="fCostTwd" type="number" min="0" step=".01"></label><p class="stay-note">各幣別填不同費用，會相加；同一筆費用請勿重複填換算額。儲存即納入總預估，付款與分帳請點本站「記帳／連結預算」。跨日住宿請使用「當日住宿與票券」的入住／退房日期。</p>';form.prepend(extras);form.onsubmit=saveDatedStop;
  el('addStopBtn').onclick=()=>addStop();
  el('fDate').addEventListener('change',()=>{el('shiftTimeSummary').textContent=el('fDate').value===dateAt(currentDay)?'同日修改時間會順延後續行程。':'移到其他日期，不順延原日期的其他行程。'});
@@ -1962,7 +1962,7 @@ saveDatedStop=function(event){
  saveBeforeTimeLock(event);
  if(!el('stopModal').classList.contains('open')){const saved=s||plan()[currentDay].stops.find(x=>x.time===el('fTime').value&&x.name===el('fName').value);if(saved){saved.timeLocked=locked;save()}}
 };
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  const label=document.createElement('label');label.className='wide time-lock-label';label.innerHTML='<input id="fTimeLocked" type="checkbox">固定時間（航班、夜巴或已預約活動，建議排程不改動）';el('stopForm').append(label);el('stopForm').onsubmit=saveDatedStop;
  el('reorderHelp').textContent='按住「拖曳排序」上下移動，放開後預覽順序與建議時間，再確認儲存。';
  const b=document.createElement('button');b.className='btn';b.textContent='重新建議當日時間';b.onclick=()=>previewSchedule();el('reorderHelp').after(b);
@@ -2008,7 +2008,7 @@ editExpense=function(id){
   const saved=id?data.ledger.entries.find(e=>e.id===id):data.ledger.entries.find(e=>!before.has(e.id));if(saved){saved.budgetStartDate=start;saved.budgetEndDate=end;delete saved.link;save();renderAll()}
  };
 };
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  document.querySelectorAll('#budget p.muted').forEach(n=>{if(n.textContent.startsWith('全團總預估＝'))n.textContent='全團總預估只加總本頁帳目，不再連結行程票價。設定分攤日期與旅伴後，自動顯示每日花費及累積；預估與已付款皆納入每日花費，只有已付款參與轉帳結算。'});
  document.querySelectorAll('#stopForm .stay-note').forEach(n=>{if(n.textContent.includes('儲存即納入總預估'))n.textContent='行程金額僅作票價／費用參考，不會計入總預算。實際預算與分帳請到「預算與分帳」新增帳目及分攤日期。'});
  renderAll();
@@ -2124,7 +2124,7 @@ renderChecklist=function(){const positions=['notices','packing'].map(id=>el(id).
  box.innerHTML='<h2>旅途中常用網站</h2><p class="muted">依用途分類，向下滑動看更多。以下為網站入口，費用、服務範圍及訂房可用性請直接向業者確認。</p><div class="link-groups" role="region" tabindex="0" aria-label="旅行網站，可向下捲動"></div>';
  const groups=box.querySelector('.link-groups');travelResourceGroups.forEach(([title,links])=>{const group=document.createElement('section');group.className='link-group';const h=document.createElement('h3');h.textContent=title;group.append(h);links.forEach(([name,url])=>{const a=document.createElement('a');a.textContent=name;a.href=url;a.target='_blank';a.rel='noopener noreferrer';group.append(a)});groups.append(group)});el('checklist').append(box);
 };
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  const budget=el('budget'),old=Array.from(budget.querySelectorAll('.budget-info'));
  if(old.length&&!el('budgetHelpRail')){
  const rail=document.createElement('div');rail.id='budgetHelpRail';rail.className='budget-help-rail';rail.innerHTML='<details><summary aria-label="預算說明與計算方式" title="預算說明與計算方式">ⓘ</summary><div class="budget-help-content"><h3>預算說明與計算方式</h3><p>行程與預算分開管理。跨日費用按分攤起末日（含末日）平均分配，再依旅伴分帳顯示每日與累積花費。篩選只改變帳目清單，不影響首頁總額或轉帳結算。</p></div></details>';
@@ -2178,7 +2178,7 @@ function renderCustomWebsites(){
  (data.customWebsites||[]).forEach(site=>{let url;try{url=normalizedWebsite(site.url)}catch{return}const group=groups[Number(site.group)]||groups[0],row=document.createElement('div');row.className='custom-site-row';const a=document.createElement('a');a.textContent=site.name;a.href=url;a.target='_blank';a.rel='noopener noreferrer';const remove=document.createElement('button');remove.className='btn';remove.textContent='移除';remove.setAttribute('aria-label','移除自訂網站 '+site.name);remove.onclick=()=>{if(!confirm('移除「'+site.name+'」？'))return;data.customWebsites=data.customWebsites.filter(s=>s.id!==site.id);save();renderCustomWebsites()};row.append(a,remove);group.append(row)});
 }
 const localChecklistBase=renderChecklist;renderChecklist=function(){localChecklistBase();renderCustomWebsites()};
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  const names={home:'首頁總覽',daily:'每日行程',budget:'預算與分帳',bookings:'預訂進度',checklist:'注意事項與行李',settings:'備份與資料'};
  document.querySelectorAll('.section').forEach(section=>{
  const frame=document.createElement('div');frame.className='page-frame';section.before(frame);frame.append(section);section.tabIndex=0;section.setAttribute('aria-label',names[section.id]+'，內容可上下捲動');
@@ -2214,7 +2214,7 @@ function syncFullHomeHeight(){
  if(height>0)document.documentElement.style.setProperty('--full-home-height',height+'px');
  if(typeof mapOverview!=='undefined')mapOverview.invalidateSize();
 }
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  const home=document.getElementById('home');
  const observer=new ResizeObserver(()=>requestAnimationFrame(syncFullHomeHeight));observer.observe(home);
  document.fonts.ready.then(syncFullHomeHeight);syncFullHomeHeight();
@@ -2251,7 +2251,7 @@ function fitPreviewContent(){
 }
 let previewFillFrame=0;
 function queuePreviewFill(){cancelAnimationFrame(previewFillFrame);previewFillFrame=requestAnimationFrame(fitPreviewContent)}
-window.addEventListener('load',()=>{
+document.addEventListener('DOMContentLoaded',()=>{
  document.querySelectorAll('.section').forEach(section=>{new MutationObserver(queuePreviewFill).observe(section,{childList:true,subtree:true,attributes:true,attributeFilter:['class','open','data-view']});new ResizeObserver(queuePreviewFill).observe(section)});
  document.addEventListener('toggle',queuePreviewFill,true);document.fonts.ready.then(queuePreviewFill);queuePreviewFill();
 });
@@ -2317,7 +2317,7 @@ renderBookings=function(){const rows=itemArray('booking').filter(r=>itemVisible(
 const personalBudgetBase=renderBudget;renderBudget=function(){personalBudgetBase();renderPersonBars()};
 // Let content determine height on the lighter tabs; do not stretch sparse lists.
 const naturalFillBase=fitPreviewContent;fitPreviewContent=function(){const id=document.querySelector('.section.active')?.id;if(id==='daily')naturalFillBase()};
-window.addEventListener('load',()=>renderAll());
+document.addEventListener('DOMContentLoaded',()=>renderAll());
 </script>
 <style id="mobile-loading">
 #daily:not(.active) .stop-thumb{background-image:none!important}
