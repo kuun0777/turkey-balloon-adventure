@@ -1598,7 +1598,7 @@ renderTravelHelpers=function(){helpersWithInline();inlineStopWarnings()};
 function shiftedStopTimes(stops,index,newTime){
  const delta=timeToM(newTime)-timeToM(stops[index].time);
  return stops.map((s,i)=>{
-  const minutes=timeToM(s.time)+(i>=index?delta:0);
+  const minutes=timeToM(s.time)+(i>=index&&!(i>index&&fixedStop(s))?delta:0);
   if(minutes<0||minutes>=1440)throw Error('順延後會跨日，請先調整當天最後幾站，或將跨日行程安排到隔天。');
   return mToTime(minutes);
  });
@@ -2356,6 +2356,63 @@ showTab=function(id){
  if(map?._deferredTiles){map._deferredTiles.addTo(map);delete map._deferredTiles}
  const pending=pendingMapDraws.get(map);if(pending)drawMap(map,...pending);
  if(map)scheduleFullMapFit();
+};
+</script>
+<style id="travel-estimate-ui">
+#travelEstimateHint{padding:12px;background:#e6eee9;border-radius:10px;font-size:14px;line-height:1.6}
+.schedule-preview button{min-height:44px;margin-top:8px}
+</style>
+<script id="travel-estimate-planner">
+function validStopCoords(s){return !!s&&s.lat!==''&&s.lng!==''&&s.lat!=null&&s.lng!=null&&Number.isFinite(+s.lat)&&Number.isFinite(+s.lng)&&Math.abs(+s.lat)<=90&&Math.abs(+s.lng)<=180&&!(+s.lat===0&&+s.lng===0)}
+function manualTravel(s){return s.travel!==null&&s.travel!==undefined&&s.travel!==''&&Number.isFinite(+s.travel)&&+s.travel>=0}
+function travelEstimate(prev,s){if(!prev)return{minutes:0,kind:'start'};if(manualTravel(s))return{minutes:+s.travel,kind:'manual'};if(!validStopCoords(prev)||!validStopCoords(s))return{minutes:null,kind:'missing'};return{minutes:autoTravel(prev,{...s,travel:null}),kind:'auto'}}
+function parseStopLocation(text){let value=String(text||'').trim();try{value=decodeURIComponent(value)}catch{}const point=value.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/)||value.match(/[?&](?:query|q)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/)||value.match(/^(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)$/);if(!point)return null;const p={lat:+point[1],lng:+point[2]};return validStopCoords(p)?p:null}
+function anchoredSchedule(ordered,startTime,buffer,shorten){
+ const stays=ordered.map(s=>Math.max(0,+s.stay||0)),rows=[],errors=[],suggestions=[];
+ let segmentStart=0;
+ function calculate(){rows.length=0;let end=timeToM(startTime);ordered.forEach((s,i)=>{const travel=travelEstimate(ordered[i-1],s),earliest=i?end+(travel.minutes||0)+buffer:end,locked=fixedStop(s),time=locked?timeToM(s.time):earliest;end=time+stays[i];rows.push({s,time,travel:travel.minutes,kind:travel.kind,locked,late:locked?Math.max(0,earliest-time):0,stay:stays[i],end})})}
+ calculate();
+ for(let i=0;i<rows.length;i++){if(!rows[i].locked)continue;let shortage=rows[i].late;
+ if(shorten&&shortage){for(let j=i-1;j>=segmentStart&&shortage>0;j--){if(fixedStop(ordered[j]))continue;const minimum=Math.min(stays[j],Math.max(15,Math.ceil((+ordered[j].stay||0)/2))),cut=Math.min(shortage,stays[j]-minimum);stays[j]-=cut;shortage-=cut}calculate()}
+ if(rows[i].late){const candidates=ordered.slice(segmentStart,i).filter(s=>!fixedStop(s));suggestions.push('「'+ordered[i].name+'」仍差 '+rows[i].late+' 分鐘。'+(segmentStart===0?'可提早開始時間，或':'前一個固定時間不可移動，請')+'在預覽中略過非必要站點'+(candidates.length?'（例如 '+candidates.map(s=>s.name).slice(0,2).join('、')+'）':'')+'；略過後會重新估算相鄰車程。')}
+ segmentStart=i+1;
+ }
+ rows.forEach((r,i)=>{if(r.kind==='missing')errors.push('第 '+(i+1)+' 站缺少位置，請補座標或手動車程');if(r.late)errors.push('第 '+(i+1)+' 站趕不上固定時間 '+r.late+' 分');if(r.time<0||r.time>=1440||r.end>=1440)errors.push('第 '+(i+1)+' 站跨日，請另行安排')});
+ return{rows,errors,suggestions};
+}
+previewSchedule=function(ordered=[...plan()[currentDay].stops]){
+ if(!ordered.length)return;const day=currentDay,version=data.version,original=[...plan()[day].stops],snapshot=JSON.stringify(plan()[day].stops),initial=[...ordered];let working=[...ordered],proposal;
+ showExpense('<h2>重新安排當日時間</h2><p class="stay-note">依站點順序、停留與交通估算。固定時間不移動、手動車程保留；預估不是即時道路導航。所有縮短／略過先預覽，按套用才儲存。</p><div class="schedule-options"><label>開始時間<input id="scheduleStart" type="time" value="'+esc(original[0].time)+'"></label><label>每段緩衝（分鐘）<input id="scheduleBuffer" type="number" min="0" max="120" value="10"></label></div><label class="time-lock-label"><input id="scheduleShorten" type="checkbox">時間不足時，建議縮短非固定站停留（最多一半，通常至少 15 分鐘；請自行確認足夠）</label><div id="schedulePreviewRows" class="schedule-preview"></div><p id="schedulePreviewError" class="stay-error" role="alert"></p><p id="scheduleAdvice" class="stay-note"></p><div class="dialog-actions"><button class="btn" id="resetScheduleStops">還原略過站點</button><button class="btn" onclick="closeExpense()">取消</button><button class="btn primary" id="applySchedule">套用此安排</button></div>');
+ function update(){const start=el('scheduleStart').value,buffer=+el('scheduleBuffer').value;if(!start||!Number.isInteger(buffer)||buffer<0||buffer>120){el('schedulePreviewError').textContent='請填有效開始時間與 0–120 分鐘緩衝';el('applySchedule').disabled=true;return}
+ proposal=anchoredSchedule(working,start,buffer,el('scheduleShorten').checked);
+ el('schedulePreviewRows').innerHTML=proposal.rows.map((r,i)=>'<div><span><b>'+mToTime(r.time)+'</b><small>原 '+esc(r.s.time)+'</small></span><span>'+esc(r.s.name)+'<small>停留 '+r.stay+' 分'+(r.stay!==+r.s.stay?'（原 '+r.s.stay+' 分）':'')+' · '+(r.travel===null?'車程待補':r.kind==='manual'?'手動車程 '+r.travel+' 分':r.kind==='start'?'首站':'估算車程 '+r.travel+' 分')+(r.locked?' · 固定時間':'')+'</small>'+(!r.locked?'<button class="btn" data-skip="'+i+'">在此次安排略過</button>':'')+'</span></div>').join('');
+ el('schedulePreviewRows').querySelectorAll('[data-skip]').forEach(b=>b.onclick=()=>{working.splice(+b.dataset.skip,1);update()});
+ el('schedulePreviewError').textContent=proposal.errors.join('；');el('scheduleAdvice').textContent=proposal.suggestions.join(' ')+(working.length!==initial.length?' 套用將從當日移除 '+(initial.length-working.length)+' 個已選擇略過的站點。':'');el('applySchedule').disabled=!!proposal.errors.length||!working.length;
+ }
+ ['scheduleStart','scheduleBuffer','scheduleShorten'].forEach(id=>el(id).oninput=update);el('resetScheduleStops').onclick=()=>{working=[...initial];update()};update();
+ el('applySchedule').onclick=()=>{if(version!==data.version||day!==currentDay||JSON.stringify(plan()[day].stops)!==snapshot){el('schedulePreviewError').textContent='旅伴已更新行程，請重新開啟預覽';return}update();if(el('applySchedule').disabled)return;
+ data.scheduleUndo={version,day,stops:structuredClone(plan()[day].stops)};
+ proposal.rows.forEach(r=>{r.s.time=mToTime(r.time);r.s.stay=r.stay});plan()[day].stops=working;plan()[day].manualOrder=true;save();closeExpense();renderAll();scheduleFullMapFit();
+ };
+};
+function updateTravelEstimateForm(){
+ if(!el('travelEstimateHint'))return;const day=plan().findIndex((d,i)=>dateAt(i)===el('fDate').value),stops=plan()[day]?.stops||[],index=el('editIndex').value;const same=day===currentDay&&index!=='',at=same?+index:Math.max(0,stops.findIndex(s=>timeToM(s.time)>timeToM(el('fTime').value)));const pos=same?at:(stops.some(s=>timeToM(s.time)>timeToM(el('fTime').value))?at:stops.length);
+ const s={lat:el('fLat').value,lng:el('fLng').value,mode:el('fMode').value,travel:el('fTravel').value},result=travelEstimate(stops[pos-1],s);
+ el('travelEstimateHint').textContent=result.kind==='start'?'首站沒有前一站車程。':result.kind==='missing'?'尚無法估算：請補上本站與前一站的座標，或手動填車程。固定時間不會鎖住自動估算。':(result.kind==='manual'?'已保留手動車程：':'依前一站距離及交通方式估算：約 ')+result.minutes+' 分鐘。'+(result.kind==='auto'?'非即時路況，山路、公車班次請另確認。':'');
+}
+const estimateExtrasBase=fillStopExtras;
+fillStopExtras=function(s={}){estimateExtrasBase(s);if(el('fReplanAfterSave')){el('fReplanAfterSave').checked=el('editIndex').value==='';updateTravelEstimateForm()}};
+const saveBeforeEstimates=saveDatedStop;
+saveDatedStop=function(event){const replan=el('fReplanAfterSave')?.checked;saveBeforeEstimates(event);if(!el('stopModal').classList.contains('open')&&replan)setTimeout(()=>previewSchedule(),0)};
+document.addEventListener('DOMContentLoaded',()=>{
+ const form=el('stopForm'),box=document.createElement('div');box.className='wide';box.innerHTML='<label>位置座標或含座標的 Google Maps 網址<input id="fLocationPaste" placeholder="例如 38.6431, 34.8287"></label><button type="button" class="btn" id="useStopLocation">套用位置</button><button type="button" class="btn" id="useAutoTravel">改用自動估算車程</button><p id="travelEstimateHint" role="status"></p><label class="time-lock-label"><input id="fReplanAfterSave" type="checkbox">儲存後預覽重新安排當日時間</label>';form.querySelector('.dialog-actions')?.before(box);if(!box.isConnected)form.append(box);
+ el('useStopLocation').onclick=()=>{const p=parseStopLocation(el('fLocationPaste').value);if(!p){el('travelEstimateHint').textContent='找不到地點座標。短網址與地圖中心網址無法確認站點，請貼上「緯度, 經度」。';return}el('fLat').value=p.lat;el('fLng').value=p.lng;updateTravelEstimateForm()};
+ el('useAutoTravel').onclick=()=>{el('fTravel').value='';updateTravelEstimateForm()};
+ ['fLat','fLng','fTravel','fMode','fTime','fDate'].forEach(id=>el(id).addEventListener('input',updateTravelEstimateForm));form.onsubmit=saveDatedStop;
+});
+const travelDayBase=renderDay;
+renderDay=function(){travelDayBase();el('stopList').querySelectorAll('.stop').forEach((card,i)=>{if(!i)return;const s=plan()[currentDay].stops[i],r=travelEstimate(plan()[currentDay].stops[i-1],s);if(r.kind==='missing'){const meta=card.querySelector('.meta');if(meta)meta.textContent=meta.textContent.replace(/車程約 [^・]+/,'車程待補位置 ')}});
+ el('undoScheduleButton')?.remove();if(data.scheduleUndo?.version===data.version&&data.scheduleUndo.day===currentDay){const b=document.createElement('button');b.id='undoScheduleButton';b.className='btn';b.textContent='還原上次排程前的行程';b.onclick=()=>{if(!confirm('還原將取代目前當日安排，確定？'))return;plan()[currentDay].stops=structuredClone(data.scheduleUndo.stops);delete data.scheduleUndo;save();b.remove();renderAll()};el('reorderHelp').after(b)}
 };
 </script>
 </body>
