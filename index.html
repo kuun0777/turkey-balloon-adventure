@@ -1855,7 +1855,7 @@ renderTicketRows=function(){
 };
 function hotelEndpoint(edge){
  const list=hotelsForDay(currentDay,edge),box=document.createElement('div');box.className='hotel-endpoint';
- const label=edge==='start'?'出發飯店':'返回／入住飯店';box.innerHTML='<small>'+label+'</small>'+(list.length?list.map(t=>'<strong>'+esc(t.title)+'</strong><div>'+esc(t.address||'尚未填地址')+'</div><div class="actions"><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(t.address||t.title)+'">飯店導航 ↗</a><button class="btn" data-hotel="'+esc(t.id)+'">編輯住宿</button></div>').join(''):'<span>尚未指定飯店（搭機／夜巴日可略過）</span><div class="actions"><button class="btn" data-add-hotel>設定住宿日期</button></div>');
+ const label=edge==='start'?'出發飯店':'返回／入住飯店';box.innerHTML='<small>'+label+'</small>'+(list.length?list.map(t=>'<strong>'+esc(t.title)+'</strong><div>'+esc(t.address||'尚未填地址')+'</div>'+(t.note?'<p class="hotel-note">'+esc(t.note)+'</p>':'')+'<div class="actions"><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(t.address||t.title)+'">飯店導航 ↗</a><button class="btn" data-hotel="'+esc(t.id)+'">編輯住宿</button></div>').join(''):'<span>尚未指定飯店（搭機／夜巴日可略過）</span><div class="actions"><button class="btn" data-add-hotel>設定住宿日期</button></div>');
  box.querySelectorAll('[data-hotel]').forEach(b=>b.onclick=()=>editTicket(b.dataset.hotel));const add=box.querySelector('[data-add-hotel]');if(add)add.onclick=()=>{editTicket();const f=el('ticketForm');f.elements.kind.value='hotel';f.elements.endDate.value=nextDate(f.elements.startDate.value)};return box;
 }
 const dayWithStay=renderDay;
@@ -2426,6 +2426,45 @@ drawMap=function(map,layers,stops){
  if(map._drawnContentKey===key)return;
  stableMapDrawBase(map,layers,stops);map._drawnContentKey=key;
 };
+</script>
+<style id="requested-route-cleanup">
+#dailyTicketCard,#bookings>.card:has(#ticketRows){display:none!important}
+.hotel-note{white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0;padding:10px;border-radius:8px;background:#fffaf0;line-height:1.6}
+#locationPickerMap{height:260px;margin:12px 0;border-radius:12px}
+.map-location-warning{font-size:13px;line-height:1.6;color:#9a4e2a;padding:8px 0}
+</style>
+<script id="requested-route-cleanup-script">
+function returnToSectionTop(section){
+ section.scrollTo({top:0,behavior:'auto'});
+ const frame=section.closest('.page-frame'),nav=document.querySelector('.nav');
+ const target=frame.getBoundingClientRect().top+window.scrollY-(nav?.getBoundingClientRect().height||0)-12;
+ window.scrollTo({top:Math.max(0,target),behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+}
+function showMissingMapLocations(){
+ for(const [id,stops]of [['dayMap',plan()[currentDay].stops],['overviewMap',plan().flatMap(d=>d.stops)]]){
+ let note=el(id+'MissingLocations');if(!note){note=document.createElement('p');note.id=id+'MissingLocations';note.className='map-location-warning';el(id).after(note)}
+ const missing=stops.filter(s=>!validStopCoords(s));note.hidden=!missing.length;note.textContent=missing.length+' 站尚無位置，未顯示於地圖：'+missing.map(s=>s.name).join('、')+'。請編輯站點，使用「地圖選位置」或填入座標。';
+ }
+}
+const linkedRouteSaveBase=saveDatedStop;
+saveDatedStop=function(event){linkedRouteSaveBase(event);if(!el('stopModal').classList.contains('open')){renderHome();renderDay();showMissingMapLocations()}};
+const linkedRouteDayBase=renderDay;renderDay=function(){linkedRouteDayBase();showMissingMapLocations()};
+const linkedRouteHomeBase=renderHome;renderHome=function(){linkedRouteHomeBase();showMissingMapLocations()};
+let locationPicker=null,locationPin=null;
+document.addEventListener('DOMContentLoaded',()=>{
+ document.querySelectorAll('.page-frame').forEach(frame=>{const button=frame.querySelector('.page-end button'),section=frame.querySelector('.section');if(button)button.onclick=()=>returnToSectionTop(section)});
+ el('stopForm').onsubmit=saveDatedStop;
+ const button=document.createElement('button');button.type='button';button.className='btn';button.textContent='地圖選位置';el('useStopLocation').after(button);
+ const box=document.createElement('div');box.id='locationPickerMap';box.hidden=true;el('travelEstimateHint').before(box);
+ button.onclick=()=>{
+ if(typeof L==='undefined'){el('travelEstimateHint').textContent='地圖未載入，請改貼座標。';return}
+ box.hidden=false;const current={lat:el('fLat').value,lng:el('fLng').value},fallback=plan()[currentDay].stops.find(validStopCoords)||{lat:38.64,lng:34.83},center=validStopCoords(current)?current:fallback;
+ if(!locationPicker){locationPicker=L.map(box);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(locationPicker);locationPicker.on('click',event=>{el('fLat').value=event.latlng.lat.toFixed(6);el('fLng').value=event.latlng.lng.toFixed(6);if(locationPin)locationPin.setLatLng(event.latlng);else locationPin=L.marker(event.latlng).addTo(locationPicker);updateTravelEstimateForm()})}
+ locationPicker.setView([+center.lat,+center.lng],13);if(locationPin){locationPicker.removeLayer(locationPin);locationPin=null}if(validStopCoords(current))locationPin=L.marker([+current.lat,+current.lng]).addTo(locationPicker);requestAnimationFrame(()=>locationPicker.invalidateSize());
+ el('travelEstimateHint').textContent='點選地圖上的實際站點位置，系統會填入座標並估算車程；儲存後同步每日與首頁路線。';
+ };
+ showMissingMapLocations();
+});
 </script>
 </body>
 </html>
