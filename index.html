@@ -581,7 +581,7 @@ function modeName(m){return {walk:"步行",metro:"地鐵/大眾運輸",scooter:"
 function costs(stops){let tryv=0,eur=0;stops.forEach(s=>{tryv+=Number(s.costTry||0)+Number(s.ticketTry||0);eur+=Number(s.ticketEur||0)});return {tryv,eur,twd:tryv*data.fxTry+eur*data.fxEur}}
 function mapUrl(s){return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(s.mapQuery||s.name)}
 function gRouteUrl(stops){const pts=stops.filter(s=>s.lat&&s.lng);if(pts.length<2)return"#";const o=`${pts[0].lat},${pts[0].lng}`,d=`${pts.at(-1).lat},${pts.at(-1).lng}`,w=pts.slice(1,-1).map(p=>`${p.lat},${p.lng}`).join("|");return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(o)}&destination=${encodeURIComponent(d)}${w?`&waypoints=${encodeURIComponent(w)}`:""}`}
-function initMaps(){if(typeof L==="undefined"){mapOverview={invalidateSize(){},fallbackId:"overviewMap"};mapDay={invalidateSize(){},fallbackId:"dayMap"};return;}mapOverview=L.map("overviewMap").setView([38.5,31.5],6);mapDay=L.map("dayMap").setView([38.5,31.5],6);for(const m of (location.protocol==="file:"?[]:[mapOverview,mapDay]))L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}).addTo(m)}
+function initMaps(){if(typeof L==="undefined"){mapOverview={invalidateSize(){},fallbackId:"overviewMap"};mapDay={invalidateSize(){},fallbackId:"dayMap"};return;}mapOverview=L.map("overviewMap").setView([38.5,31.5],6);mapDay=L.map("dayMap").setView([38.5,31.5],6)}
 function clearLayers(map,layers){layers.forEach(l=>map.removeLayer(l));layers.length=0}
 function drawMap(map,layers,stops){if(map.fallbackId){fallbackMap(map.fallbackId,stops);return;}clearLayers(map,layers);const pts=stops.filter(s=>s.lat&&s.lng);if(!pts.length)return;pts.forEach(s=>layers.push(L.marker([s.lat,s.lng]).addTo(map).bindPopup(`<b>${esc(s.name)}</b><br>${esc(s.time)}`)));if(pts.length>1)layers.push(L.polyline(pts.map(s=>[s.lat,s.lng]),{weight:4,opacity:.75}).addTo(map));map.fitBounds(L.latLngBounds(pts.map(s=>[s.lat,s.lng])),{padding:[30,30],maxZoom:11})}
 
@@ -936,6 +936,7 @@ async function cloudPush(){
  catch(e){setCloudStatus('目前離線或設定有誤；資料已保存在這台裝置') }finally{cloudBusy=false}
 }
 async function cloudPull(show=true){
+ if(!show&&document.hidden)return;
  if(!cloudReady()){if(show)setCloudStatus('尚未連接 Supabase');return}if(cloudBusy)return;cloudBusy=true;if(show)setCloudStatus('正在讀取共享資料…','syncing');
  try{const res=await fetch(cloudEndpoint()+'?id=eq.'+encodeURIComponent(cloud.tripId)+'&select=payload,revision,updated_at',{headers:cloudHeaders()});if(!res.ok)throw Error(await res.text());const rows=await res.json();
  if(!rows.length){cloudBusy=false;await cloudPush();return}
@@ -1748,7 +1749,7 @@ window.addEventListener('load',()=>{
   const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'});
   let failed=false;
   tiles.on('tileerror',()=>{if(failed)return;failed=true;map.removeLayer(tiles);note.hidden=false;note.textContent='道路底圖暫時無法載入；站別與路線仍可用。請點 Google Maps 開啟道路導航。'});
-  tiles.addTo(map);
+  if(host.closest('.section')?.classList.contains('active'))tiles.addTo(map);else map._deferredTiles=tiles;
  }
 });
 </script>
@@ -2317,6 +2318,45 @@ const personalBudgetBase=renderBudget;renderBudget=function(){personalBudgetBase
 // Let content determine height on the lighter tabs; do not stretch sparse lists.
 const naturalFillBase=fitPreviewContent;fitPreviewContent=function(){const id=document.querySelector('.section.active')?.id;if(id==='daily')naturalFillBase()};
 window.addEventListener('load',()=>renderAll());
+</script>
+<style id="mobile-loading">
+#daily:not(.active) .stop-thumb{background-image:none!important}
+</style>
+<script id="mobile-performance">
+const performanceFullRender=renderAll,performanceShowTab=showTab,performanceDrawMap=drawMap;
+let performanceBooted=false,performanceTimer=0;
+const pendingMapDraws=new Map();
+function activePage(){return document.querySelector('.section.active')?.id||'home'}
+function refreshVisiblePage(){
+ ensureLedger();renderHero();
+ const id=activePage();
+ if(id==='home')renderHome();
+ else if(id==='daily')renderDay();
+ else if(id==='budget')renderBudget();
+ else if(id==='bookings'){renderBookings();if(typeof renderTicketRows==='function')renderTicketRows()}
+ else if(id==='checklist')renderChecklist();
+ for(const [key,value]of [['fxTry',data.fxTry],['fxEur',data.fxEur],['fxUsd',data.fxUsd]])if(el(key))el(key).value=value;
+}
+renderAll=function(){
+ // One full construction preserves the existing startup hooks. Subsequent
+ // requests in this event-loop turn update only the visible section.
+ if(!performanceBooted){performanceBooted=true;performanceFullRender();return}
+ clearTimeout(performanceTimer);performanceTimer=setTimeout(()=>{performanceTimer=0;refreshVisiblePage()},0);
+};
+drawMap=function(map,layers,stops){
+ const id=map===mapDay?'daily':'home';
+ if(activePage()!==id){pendingMapDraws.set(map,[layers,stops]);return}
+ pendingMapDraws.delete(map);
+ if(map?._deferredTiles){map._deferredTiles.addTo(map);delete map._deferredTiles}
+ performanceDrawMap(map,layers,stops);
+};
+showTab=function(id){
+ performanceShowTab(id);clearTimeout(performanceTimer);performanceTimer=0;refreshVisiblePage();
+ const map=id==='daily'?mapDay:id==='home'?mapOverview:null;
+ if(map?._deferredTiles){map._deferredTiles.addTo(map);delete map._deferredTiles}
+ const pending=pendingMapDraws.get(map);if(pending)drawMap(map,...pending);
+ if(map)scheduleFullMapFit();
+};
 </script>
 </body>
 </html>
