@@ -2252,7 +2252,7 @@ function fitPreviewContent(){
 let previewFillFrame=0;
 function queuePreviewFill(){cancelAnimationFrame(previewFillFrame);previewFillFrame=requestAnimationFrame(fitPreviewContent)}
 document.addEventListener('DOMContentLoaded',()=>{
- document.querySelectorAll('.section').forEach(section=>{new MutationObserver(queuePreviewFill).observe(section,{childList:true,subtree:true,attributes:true,attributeFilter:['class','open','data-view']});new ResizeObserver(queuePreviewFill).observe(section)});
+ document.querySelectorAll('.section').forEach(section=>{new MutationObserver(records=>{if(records.some(r=>!r.target.closest?.('#dayMap,#overviewMap')))queuePreviewFill()}).observe(section,{childList:true,subtree:true,attributes:true,attributeFilter:['class','open','data-view']});new ResizeObserver(queuePreviewFill).observe(section)});
  document.addEventListener('toggle',queuePreviewFill,true);document.fonts.ready.then(queuePreviewFill);queuePreviewFill();
 });
 window.addEventListener('resize',queuePreviewFill);
@@ -2413,6 +2413,18 @@ document.addEventListener('DOMContentLoaded',()=>{
 const travelDayBase=renderDay;
 renderDay=function(){travelDayBase();el('stopList').querySelectorAll('.stop').forEach((card,i)=>{if(!i)return;const s=plan()[currentDay].stops[i],r=travelEstimate(plan()[currentDay].stops[i-1],s);if(r.kind==='missing'){const meta=card.querySelector('.meta');if(meta)meta.textContent=meta.textContent.replace(/車程約 [^・]+/,'車程待補位置 ')}});
  el('undoScheduleButton')?.remove();if(data.scheduleUndo?.version===data.version&&data.scheduleUndo.day===currentDay){const b=document.createElement('button');b.id='undoScheduleButton';b.className='btn';b.textContent='還原上次排程前的行程';b.onclick=()=>{if(!confirm('還原將取代目前當日安排，確定？'))return;plan()[currentDay].stops=structuredClone(data.scheduleUndo.stops);delete data.scheduleUndo;save();b.remove();renderAll()};el('reorderHelp').after(b)}
+};
+</script>
+<script id="stable-map-interaction">
+function mapRouteSignature(map){const daily=map===mapDay;const stops=daily?[...plan()[currentDay].stops,...hotelsForDay(currentDay,'start'),...hotelsForDay(currentDay,'end')]:plan().flatMap(d=>d.stops);return JSON.stringify([data.version,daily?currentDay:'all',stops.map(s=>[s.lat,s.lng])])}
+scheduleFullMapFit=function(){if(fitQueued)return;fitQueued=true;requestAnimationFrame(()=>{fitQueued=false;for(const map of [mapDay,mapOverview]){if(!map||map.fallbackId||!map.getContainer?.().clientWidth)continue;const key=mapRouteSignature(map);if(map._automaticRouteKey===key)continue;map._automaticRouteKey=key;fitFullTripMap(map)}})};
+const stableMapDrawBase=drawMap;
+drawMap=function(map,layers,stops){
+ if(!map)return;const visible=(map===mapDay?'daily':'home')===activePage();
+ if(!visible){stableMapDrawBase(map,layers,stops);return}
+ const key=JSON.stringify([mapRouteSignature(map),stops]);
+ if(map._drawnContentKey===key)return;
+ stableMapDrawBase(map,layers,stops);map._drawnContentKey=key;
 };
 </script>
 </body>
