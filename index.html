@@ -663,7 +663,7 @@ function ensureLedger(){
 }
 function applicableEntries(){ensureLedger();return data.ledger.entries.filter(e=>e.scope==='all'||e.scope===data.version)}
 function fx(c){return c==='TWD'?1:c==='TRY'?data.fxTry:c==='EUR'?data.fxEur:data.fxUsd}
-function entryCents(e){const shared=e.paid&&e.paymentDate?data.paymentRates?.[e.paymentDate]?.[e.currency]?.rate:null;return Math.round(e.amount*(shared>0?shared:e.paid&&Number.isFinite(e.lockedRate)&&e.lockedRate>0?e.lockedRate:fx(e.currency))*100)}
+function entryCents(e){if(e.currency==='TWD')return Math.round(e.amount*100);const shared=e.paid&&e.paymentDate?data.paymentRates?.[e.paymentDate]?.[e.currency]?.rate:null;return Math.round(e.amount*(shared>0?shared:e.paid&&Number.isFinite(e.lockedRate)&&e.lockedRate>0?e.lockedRate:fx(e.currency))*100)}
 function plannedItems(){return plan().flatMap((d,di)=>d.stops.map((s,si)=>({id:data.version+':'+di+':'+si,name:d.date+' '+s.name,cents:Math.round(costs([s]).twd*100)}))).filter(x=>x.cents>0)}
 function ledgerTotals(){const es=applicableEntries(),items=plannedItems();let remaining=0;items.forEach(p=>{const covered=es.filter(e=>e.link===p.id).reduce((n,e)=>n+entryCents(e),0);remaining+=Math.max(0,p.cents-covered)});return {remaining,entries:es.reduce((n,e)=>n+entryCents(e),0),paid:es.filter(e=>e.paid).reduce((n,e)=>n+entryCents(e),0)}}
 tripCost=function(){const t=ledgerTotals();return(t.remaining+t.entries)/100};
@@ -756,6 +756,7 @@ el('importFile').onchange=e=>{
  const file=e.target.files[0];if(!file)return;const reader=new FileReader();
  reader.onload=()=>{try{
  const candidate=JSON.parse(reader.result);
+ validateTripBackup(candidate);
  if(!['A','B'].includes(candidate.version)||!candidate.plans||!['A','B'].every(v=>Array.isArray(candidate.plans[v])&&candidate.plans[v].length&&candidate.plans[v].every(d=>Array.isArray(d.stops)&&d.stops.every(s=>typeof s.name==='string'&&typeof s.time==='string')))||!(candidate.fxTry>0)||!(candidate.fxEur>0))throw Error('不是 PRO 行程備份格式');
  if(candidate.ledger){const ids=candidate.ledger.people.map(p=>p.id);if(!ids.length||new Set(ids).size!==ids.length||!candidate.ledger.entries.every(x=>x.id&&x.amount>0&&['TWD','TRY','EUR','USD'].includes(x.currency)&&ids.includes(x.payer)&&x.members?.length&&new Set(x.members).size===x.members.length&&x.members.every(id=>ids.includes(id))&&['all','A','B'].includes(x.scope)&&['equal','custom'].includes(x.mode)&&(x.mode!=='custom'||Math.round(Object.values(x.shares||{}).reduce((a,b)=>a+b,0)*100)===Math.round(x.amount*100))))throw Error('分帳資料不完整')}
  candidate.checked=candidate.checked||{};candidate.notices=candidate.notices||structuredClone(seed.notices);candidate.packing=candidate.packing||structuredClone(seed.packing);
@@ -2396,8 +2397,8 @@ previewSchedule=function(ordered=[...plan()[currentDay].stops]){
  };
 };
 function updateTravelEstimateForm(){
- if(!el('travelEstimateHint'))return;const day=plan().findIndex((d,i)=>dateAt(i)===el('fDate').value),stops=plan()[day]?.stops||[],index=el('editIndex').value;const same=day===currentDay&&index!=='',at=same?+index:Math.max(0,stops.findIndex(s=>timeToM(s.time)>timeToM(el('fTime').value)));const pos=same?at:(stops.some(s=>timeToM(s.time)>timeToM(el('fTime').value))?at:stops.length);
- const s={lat:el('fLat').value,lng:el('fLng').value,mode:el('fMode').value,travel:el('fTravel').value},result=travelEstimate(stops[pos-1],s);
+ if(!el('travelEstimateHint'))return;const day=plan().findIndex((d,i)=>dateAt(i)===el('fDate').value),index=el('editIndex').value;const same=day===currentDay&&index!=='';
+ const s={lat:el('fLat').value,lng:el('fLng').value,mode:el('fMode').value,travel:el('fTravel').value},result=travelEstimate(travelFormPrevious(plan()[day],index,same,el('fTime').value),s);
  el('travelEstimateHint').textContent=result.kind==='start'?'首站沒有前一站車程。':result.kind==='missing'?'尚無法估算：請補上本站與前一站的座標，或手動填車程。固定時間不會鎖住自動估算。':(result.kind==='manual'?'已保留手動車程：':'依前一站距離及交通方式估算：約 ')+result.minutes+' 分鐘。'+(result.kind==='auto'?'非即時路況，山路、公車班次請另確認。':'');
 }
 const estimateExtrasBase=fillStopExtras;
@@ -2465,6 +2466,110 @@ document.addEventListener('DOMContentLoaded',()=>{
  };
  showMissingMapLocations();
 });
+</script>
+<style id="sync-safety-style">
+#syncSafety{position:sticky;top:0;z-index:1200;padding:10px 16px;background:#fff3d6;border-bottom:1px solid #c5a25d;font-size:14px;line-height:1.5}#syncSafety[hidden]{display:none}#syncSafety .actions{margin:6px 0 0;flex-wrap:wrap}#syncSafety .btn{min-height:44px}#syncSafetyText{margin:0}
+</style>
+<script id="safe-cloud-sync">
+// Conditional writes: a stale client must never replace a newer shared revision.
+let syncIdentity='',syncKnown=false,syncDirty=false,syncConflict=false,syncSerial=0;
+function syncKey(){return 'turkey_pending_v2_'+cloud.url+'_'+cloud.tripId}
+function syncRemember(){
+ try{localStorage.setItem(syncKey(),JSON.stringify({revision:cloudLastRevision,known:syncKnown,dirty:syncDirty,payload:syncDirty?data:null}))}
+ catch{syncNotice('裝置儲存空間不足；請立即匯出 JSON 備份，並保持本頁開啟。',true)}
+}
+function syncContext(){
+ const key=syncKey();if(key===syncIdentity)return;syncIdentity=key;syncKnown=false;syncDirty=false;syncConflict=false;cloudLastRevision=0;
+ try{const p=JSON.parse(localStorage.getItem(key)||'null');if(p?.dirty&&p.payload){syncKnown=!!p.known;cloudLastRevision=Number(p.revision)||0;data=p.payload;ensureLedger();syncDirty=true;baseLocalSave();renderAll()}}catch{}
+}
+function syncNotice(message,actions=false){
+ let box=el('syncSafety');if(!box){box=document.createElement('aside');box.id='syncSafety';box.setAttribute('role','status');box.innerHTML='<p id="syncSafetyText"></p><div class="actions"><button class="btn" id="syncExport">匯出本機備份</button><button class="btn" id="syncReload">保留備份並讀取團員最新版</button></div>';document.body.prepend(box);el('syncExport').onclick=()=>el('exportBtn').click();el('syncReload').onclick=resolveSyncConflict}
+ box.hidden=!message;el('syncSafetyText').textContent=message;box.querySelector('.actions').hidden=!actions;el('syncReload').hidden=!syncConflict;
+}
+function syncBlock(){syncConflict=true;syncRemember();syncNotice('團員已更新資料。你的修改仍保存在本機，為避免覆蓋已暫停上傳。請先匯出備份，再讀取團員最新版並重新套用你的修改。',true);setCloudStatus('同步衝突 · 本機修改已保留')}
+function syncEditing(){return !!document.querySelector('.modal.open,dialog[open],#expenseModal.open')}
+async function syncRequest(url,options={}){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);try{return await fetch(url,{...options,signal:controller.signal})}finally{clearTimeout(timer)}}
+async function syncRead(){const r=await syncRequest(cloudEndpoint()+'?id=eq.'+encodeURIComponent(cloud.tripId)+'&select=payload,revision,updated_at',{headers:cloudHeaders()});if(!r.ok)throw Error('讀取失敗');const rows=await r.json();return rows[0]||null}
+function syncAccept(row){
+ cloudApplying=true;try{data=upgradeItinerary(row.payload);ensureLedger();baseLocalSave();cloudLastRevision=Number(row.revision);syncKnown=true;syncDirty=false;syncConflict=false;syncRemember();renderAll();syncNotice('')}finally{cloudApplying=false}
+}
+async function resolveSyncConflict(){
+ if(cloudBusy||!confirm('本機修改會另存於此裝置備份，再讀取團員最新版。建議先按「匯出本機備份」保存檔案。確定繼續？'))return;
+ try{localStorage.setItem(syncKey()+'_recovery',JSON.stringify({savedAt:new Date().toISOString(),payload:data}));}catch{syncNotice('無法建立本機備份，未取代你的資料。請先匯出 JSON 並釋放裝置空間。',true);return}
+ cloudBusy=true;const serial=syncSerial,identity=syncIdentity;
+ try{const row=await syncRead();if(identity!==syncIdentity||serial!==syncSerial)return;if(!row)throw Error('旅程不存在');syncAccept(row);setCloudStatus('已讀取團員最新版；原修改保留於本機備份','online')}
+ catch{syncNotice('讀取失敗；你的修改完整保留，請稍後重試。',true)}finally{cloudBusy=false}
+}
+cloudPush=async function(){
+ if(!cloudReady()||cloudApplying)return;syncContext();if(cloudBusy){clearTimeout(cloudTimer);cloudTimer=setTimeout(cloudPush,1200);return}if(syncConflict){syncBlock();return}
+ cloudBusy=true;const identity=syncIdentity,serial=syncSerial;setCloudStatus('正在安全同步…','syncing');
+ try{
+  if(!syncKnown){const row=await syncRead();if(identity!==syncIdentity)return;if(row){if(syncDirty){syncBlock();return}syncAccept(row);return}syncKnown=true;cloudLastRevision=0;syncDirty=true;syncRemember()}
+  if(!syncDirty)return;
+  const snapshot=structuredClone(data),revision=Math.max(Date.now(),cloudLastRevision+1);
+  const record={id:cloud.tripId,payload:snapshot,revision,updated_at:new Date().toISOString(),updated_by:typeof selectedTraveler==='function'?selectedTraveler():''};
+  const exists=cloudLastRevision>0;
+  const endpoint=cloudEndpoint()+(exists?'?id=eq.'+encodeURIComponent(cloud.tripId)+'&revision=eq.'+cloudLastRevision:'');
+  const response=await syncRequest(endpoint,{method:exists?'PATCH':'POST',headers:{...cloudHeaders(),'x-trip-revision':String(cloudLastRevision),Prefer:'return=representation'},body:JSON.stringify(record)});
+  if(identity!==syncIdentity)return;
+  if(response.status===409){syncBlock();return}if(!response.ok)throw Error('上傳失敗');const rows=await response.json();
+  if(!rows.length){syncBlock();return}
+  cloudLastRevision=revision;syncKnown=true;syncDirty=serial!==syncSerial;syncRemember();syncNotice('');setCloudStatus(syncDirty?'正在同步後續修改…':'已同步 · '+new Date().toLocaleTimeString('zh-TW'),'online');
+ }catch{syncRemember();syncNotice('尚未同步：修改保留在本機。恢復連線後會重試，請勿清除瀏覽器資料。',true);setCloudStatus('離線／同步失敗 · 本機保留')}
+ finally{cloudBusy=false;if(syncDirty&&!syncConflict&&identity===syncIdentity){clearTimeout(cloudTimer);cloudTimer=setTimeout(cloudPush,5000)}}
+};
+cloudPull=async function(show=true){
+ if(!cloudReady()||(!show&&document.hidden))return;syncContext();if(cloudBusy)return;if(syncDirty){if(syncConflict){syncBlock();return}return cloudPush()}if(syncEditing())return;
+ cloudBusy=true;const identity=syncIdentity,serial=syncSerial;
+ try{const row=await syncRead();if(identity!==syncIdentity)return;
+  if(syncDirty||serial!==syncSerial||syncEditing())return;
+  if(!row){syncKnown=true;cloudLastRevision=0;syncDirty=true;syncRemember();return}
+  if(!syncKnown||Number(row.revision)>cloudLastRevision){try{localStorage.setItem(syncKey()+'_beforePull',JSON.stringify({savedAt:new Date().toISOString(),payload:data}))}catch{}syncAccept(row)}
+  if(show)setCloudStatus('已同步 · '+new Date(row.updated_at).toLocaleTimeString('zh-TW'),'online');
+ }catch{if(show){syncNotice('無法連線，正在顯示本機資料；尚未取得團員最新版。');setCloudStatus('離線 · 使用本機資料')}}
+ finally{cloudBusy=false;if(syncDirty&&!syncConflict){clearTimeout(cloudTimer);cloudTimer=setTimeout(cloudPush,900)}}
+};
+save=function(){
+ if(cloudApplying){baseLocalSave();return}if(cloudReady()){syncContext();syncSerial++;syncDirty=true;syncRemember();if(syncConflict)syncBlock();else{setCloudStatus('本機已保存 · 等待同步','syncing');clearTimeout(cloudTimer);cloudTimer=setTimeout(cloudPush,900)}}
+ baseLocalSave();
+};
+// Do not silently abandon pending edits when changing the shared trip.
+const safetySaveSettings=saveCloudSettings,safetyCreateTrip=createSharedTrip;
+function canChangeSharedTrip(){if(syncDirty){alert('目前仍有未同步修改。請先完成同步或處理上方衝突，再切換旅程。');return false}return !cloudBusy}
+saveCloudSettings=function(){if(canChangeSharedTrip())safetySaveSettings()};
+createSharedTrip=function(){if(canChangeSharedTrip())safetyCreateTrip()};
+window.addEventListener('online',()=>{if(syncDirty)cloudPush();else cloudPull()});
+window.addEventListener('beforeunload',event=>{if(syncDirty){event.preventDefault();event.returnValue=''}});
+function downloadSyncRecovery(){
+ let backup;try{backup=JSON.parse(localStorage.getItem(syncKey()+'_recovery')||localStorage.getItem(syncKey()+'_beforePull')||'null')}catch{}
+ if(!backup?.payload){alert('此裝置目前沒有同步前備份。');return}
+ const a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(backup.payload,null,2)],{type:'application/json'}));a.href=url;a.download='土耳其_同步前保留備份.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('button');b.className='btn';b.type='button';b.textContent='下載此裝置的同步前備份';b.onclick=downloadSyncRecovery;el('cloudPanel')?.append(b)});
+syncContext();
+</script>
+<script id="consistent-stop-position">
+function validateTripBackup(candidate){
+ for(const days of Object.values(candidate.plans||{})){
+  if(!Array.isArray(days))throw Error('行程格式錯誤');
+  for(const day of days)for(const s of day.stops||[]){
+   if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(s.time||''))throw Error('站點時間需為 00:00–23:59');
+   for(const key of ['stay','travel','costTwd','costTry','ticketTry','ticketEur'])if(s[key]!=null&&s[key]!==''&&(!Number.isFinite(Number(s[key]))||Number(s[key])<0))throw Error('時間與費用不可為負數或無效數字');
+   for(const [key,max]of [['lat',90],['lng',180]])if(s[key]!=null&&s[key]!==''&&(!Number.isFinite(Number(s[key]))||Math.abs(Number(s[key]))>max))throw Error('站點座標超出範圍');
+  }
+ }
+ const entries=candidate.ledger?.entries||[];
+ if(new Set(entries.map(e=>e.id)).size!==entries.length)throw Error('支出 ID 重複');
+ for(const e of entries)if(e.mode==='custom'&&!(e.members||[]).every(id=>Number.isFinite(Number(e.shares?.[id]))&&Number(e.shares[id])>=0))throw Error('自訂分帳不可為負數或無效數字');
+}
+function travelFormPrevious(day,index,same,time){
+ if(!day)return undefined;
+ const draft=day.stops.map(s=>({...s})),at=Number(index);let target;
+ if(same){target=draft[at];try{const times=shiftedStopTimes(draft,at,time);draft.forEach((s,i)=>{if(i>at)s.time=times[i]})}catch{}target.time=time}
+ else{target={time};draft.push(target)}
+ if(!day.manualOrder)draft.sort((a,b)=>timeToM(a.time)-timeToM(b.time));
+ return draft[draft.indexOf(target)-1];
+}
 </script>
 </body>
 </html>
